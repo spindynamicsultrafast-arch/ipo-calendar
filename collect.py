@@ -250,7 +250,11 @@ def main():
         recs[no] = rec
 
     if os.environ.get("DART_API_KEY"):
-        filers = dart_filers()
+        try:
+            filers = dart_filers()
+        except Exception as e:  # DART 접속 장애(타임아웃)로 페이지 갱신 전체가 멈추지 않게
+            print("DART 목록 실패:", e)
+            filers = {}
         for rec in recs.values():
             try:
                 rec["dart"] = dart_check(rec, filers)
