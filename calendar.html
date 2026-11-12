@@ -1,0 +1,481 @@
+<title>공모주 달력</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+/* 레이아웃: 위에 '이번 주 할 일' 큰 글씨 요약, 아래 월 달력 + 다가오는 일정 목록. 종목 누르면 상세 창. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --line: #dde3ea;
+  --fg: #17202b;
+  --muted: #5b6878;
+  --accent: #1f4fd1;
+  --sub: #1d4ed8; --sub-soft: #dfe8ff;          /* 청약: 파랑 */
+  --refund: #4a5563; --refund-soft: #e8ecf1;    /* 환불: 회색 (가장 덜 중요) */
+  --listing: #7c2fe0; --on-listing: #ffffff;    /* 상장: 진한 보라 채움 (가장 눈에 띄게) */
+  --good: #0f7a4a; --good-soft: #dcf3e7;
+  --mid: #8a5a00;  --mid-soft: #fbf0d9;
+  --warn: #b4232c; --warn-soft: #fbe5e6;
+  --weekend: #eef1f5;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #19212b; --line: #2b3542; --fg: #e8edf3; --muted: #9aa7b6;
+    --accent: #8fb0ff;
+    --sub: #a9c1ff; --sub-soft: #1f2d52;
+    --refund: #b8c2ce; --refund-soft: #27303c;
+    --listing: #b48cff; --on-listing: #17102a;
+    --good: #6fd9a3; --good-soft: #163a2a; --mid: #f2c56b; --mid-soft: #3a2e14; --warn: #ff8f96; --warn-soft: #44201f;
+    --weekend: #151b23;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #19212b; --line: #2b3542; --fg: #e8edf3; --muted: #9aa7b6;
+  --accent: #8fb0ff;
+  --sub: #a9c1ff; --sub-soft: #1f2d52;
+  --refund: #b8c2ce; --refund-soft: #27303c;
+  --listing: #b48cff; --on-listing: #17102a;
+  --good: #6fd9a3; --good-soft: #163a2a; --mid: #f2c56b; --mid-soft: #3a2e14; --warn: #ff8f96; --warn-soft: #44201f;
+  --weekend: #151b23;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px; }
+h1, h2 { margin: 0; text-wrap: balance; }
+h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; font-weight: 700; }
+.sub { color: var(--muted); font-size: 0.9rem; margin: 4px 0 0; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* 등급 필터 */
+.filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.filter-label { color: var(--muted); font-size: 0.9rem; margin-right: 2px; }
+[hidden] { display: none !important; }  /* .todo·.row 의 display 가 hidden 을 이기지 않게 */
+.fbtn { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 999px; padding: 4px 12px 4px 5px; cursor: pointer; font-weight: 600; font-size: 0.95rem; }
+.fbtn .grade { min-width: 1.8em; height: 1.8em; font-size: 0.85rem; border-radius: 999px; }
+.fbtn .grade.g-none { font-size: 0.72rem; }
+.fbtn[aria-pressed="true"] { border-color: var(--fg); }
+.fbtn[aria-pressed="false"] { opacity: 0.45; text-decoration: line-through; }
+
+/* 이번 주 */
+.week { display: grid; gap: 10px; }
+.week-list { display: grid; gap: 10px; }
+.todo { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
+.todo:hover { border-color: var(--accent); }
+.todo .when { font-size: 1.05rem; font-weight: 600; width: 6.2em; }
+.todo .when small { display: block; font-size: 0.85rem; font-weight: 500; color: var(--muted); }
+.todo .what { font-size: 1.3rem; font-weight: 700; min-width: 0; }
+.todo .what small { display: block; font-size: 0.9rem; font-weight: 400; color: var(--muted); }
+.todo .what small.money { font-size: 1rem; font-weight: 600; color: var(--fg); margin-top: 2px; }
+.empty { color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; padding: 16px; }
+
+.tag { display: inline-block; font-size: 0.8rem; font-weight: 600; border-radius: 6px; padding: 1px 7px; margin-right: 6px; vertical-align: 2px; }
+.t-청약 { background: var(--sub-soft); color: var(--sub); }
+.t-환불 { background: var(--refund-soft); color: var(--refund); }
+.t-상장 { background: var(--listing); color: var(--on-listing); }
+.grade { display: inline-grid; place-items: center; min-width: 2.2em; height: 2.2em; border-radius: 8px; font-weight: 700; font-size: 1.05rem; }
+.g-A { background: var(--good-soft); color: var(--good); }
+.g-B { background: var(--mid-soft); color: var(--mid); }
+.g-C { background: var(--warn-soft); color: var(--warn); }
+.g-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--muted); font-size: 0.75rem; font-weight: 600; padding: 0 6px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 0.88rem; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .grade { min-width: 1.8em; height: 1.8em; font-size: 0.85rem; }
+
+/* 달력 */
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.nav { display: flex; gap: 6px; }
+.nav button { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.nav button:disabled { opacity: 0.4; cursor: default; }
+.cal { overflow-x: auto; }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--line); gap: 1px; }
+.dow { background: var(--surface); text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--muted); padding: 8px 0; }
+.dow.sun { color: var(--warn); }
+.day { background: var(--surface); min-height: 112px; padding: 6px 5px 8px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.day.weekend { background: var(--weekend); }
+.day.out { opacity: 0.35; }
+.day .d { font-size: 0.9rem; font-weight: 600; color: var(--muted); padding-left: 3px; }
+.day.today .d { color: var(--accent); font-weight: 700; }
+.day.today { box-shadow: inset 0 0 0 2px var(--accent); }
+.chip { display: block; text-align: left; border: 0; border-radius: 6px; padding: 3px 7px; font-size: 0.86rem; font-weight: 600; line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.chip b { font-weight: 700; margin-right: 4px; opacity: 0.85; }
+.chip .gr { margin-left: 4px; font-weight: 700; opacity: 0.75; }
+.chip.t-상장 { font-weight: 700; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
+.ohlc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
+.ohlc h3 { grid-column: 1 / -1; margin: 0; font-size: 0.95rem; }
+.ohlc h3 small { font-weight: 400; color: var(--muted); margin-left: 4px; }
+.ohlc div { background: var(--surface-2, var(--weekend)); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; min-width: 0; }
+.ohlc span { font-size: 0.8rem; color: var(--muted); }
+.ohlc b { font-size: 0.95rem; }
+.ohlc small { font-size: 0.85rem; font-weight: 700; }
+.ohlc .up { color: #e5384f; }
+.ohlc .down { color: #2f6fe0; }
+.chip.gap { visibility: hidden; pointer-events: none; }
+/* 이틀 청약: 옆 칸으로 이어 붙이고, 둘째 날은 글자 숨김 (칸 안쪽 여백 5px + 선 1px) */
+.chip.joinR { margin-right: -6px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.chip.joinL { margin-left: -5px; border-top-left-radius: 0; border-bottom-left-radius: 0; color: transparent; }
+.until { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+
+/* 다가오는 일정 */
+.agenda { display: grid; gap: 14px; }
+.agenda-day { display: grid; grid-template-columns: 6.5em 1fr; gap: 12px; align-items: start; }
+.agenda-day .date { font-weight: 600; padding-top: 6px; }
+.agenda-items { display: grid; gap: 6px; min-width: 0; }
+.row { display: flex; align-items: center; gap: 10px; text-align: left; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; min-width: 0; }
+.row:hover { border-color: var(--accent); }
+.row .nm { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .uw { display: block; font-size: 0.8rem; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.row .grade { min-width: 1.9em; height: 1.9em; font-size: 0.9rem; }
+
+/* 달력 + 일정 나란히 (넓은 화면), 좁으면 위아래 */
+.split { display: grid; gap: 28px; }
+@media (min-width: 960px) {
+  .split { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .split > .side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
+    max-height: calc(100dvh - 32px); overflow-y: auto; padding-right: 4px; display: grid; gap: 20px; align-content: start; }
+}
+
+/* 선택한 종목 강조: 나머지는 흐리게, 같은 종목 청·환·상은 테두리 */
+.grid.focus .chip:not(.sel) { opacity: 0.22; }
+.chip.sel { outline: 2px solid var(--fg); outline-offset: 1px; position: relative; z-index: 1; }
+.chip.joinL.sel { outline: none; box-shadow: 0 2px 0 var(--fg), 0 -2px 0 var(--fg), 2px 0 0 var(--fg); }
+.chip.joinR.sel { outline: none; box-shadow: 0 2px 0 var(--fg), 0 -2px 0 var(--fg), -2px 0 0 var(--fg); }
+.row.sel, .todo.sel { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+
+/* 상세 패널 */
+.dlg { background: var(--surface); border: 1.5px solid var(--fg); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.steps { display: grid; gap: 6px; }
+.steps span { display: flex; align-items: center; gap: 4px; }
+.steps b { font-weight: 600; }
+@media (max-width: 959px) {
+  /* 좁은 화면: 아래쪽 시트, 화면 절반 이하만 차지해 달력이 보이게 */
+  .detail { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-height: 46dvh; overflow-y: auto;
+    border-radius: 16px 16px 0 0; border-width: 1.5px 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.2);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+.dlg-head { display: flex; align-items: center; gap: 12px; }
+.dlg-head h2 { flex: 1; font-size: 1.35rem; }
+.close { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; cursor: pointer; }
+.verdict { border-radius: 10px; padding: 10px 14px; font-weight: 600; }
+.verdict.g-none { font-size: 0.95rem; padding: 10px 14px; height: auto; display: block; }
+dl { margin: 0; display: grid; grid-template-columns: 8.5em 1fr; gap: 8px 12px; }
+dt { color: var(--muted); }
+dd { margin: 0; min-width: 0; }
+.src { font-size: 0.85rem; color: var(--muted); }
+.src a { color: var(--accent); }
+footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
+
+@media (max-width: 640px) {
+  h1 { font-size: 1.5rem; }
+  .day { min-height: 64px; }
+  .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
+  .chip.t-상장 { height: 8px; }
+  .chip b { display: none; }
+  .todo { grid-template-columns: 1fr auto; }
+  .todo { row-gap: 2px; }
+  .todo .when { grid-column: 1 / -1; width: auto; font-size: 0.95rem; color: var(--muted); }
+  .todo .when small { display: inline; margin-left: 4px; }
+  .agenda-day { grid-template-columns: 1fr; gap: 6px; }
+  .agenda-day .date { padding-top: 0; }
+  dl { grid-template-columns: 7em 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>공모주 달력</h1>
+    <p class="sub" id="asof"></p>
+    <div class="filter" role="group" aria-label="등급으로 거르기">
+      <span class="filter-label">보기</span>
+      <button type="button" class="fbtn" data-f="A" aria-pressed="true"><i class="grade g-A">A</i>좋음</button>
+      <button type="button" class="fbtn" data-f="B" aria-pressed="true"><i class="grade g-B">B</i>보통</button>
+      <button type="button" class="fbtn" data-f="C" aria-pressed="true"><i class="grade g-C">C</i>주의</button>
+      <button type="button" class="fbtn" data-f="none" aria-pressed="true"><i class="grade g-none">대기</i>등급 전</button>
+    </div>
+  </header>
+
+  <section class="week" aria-labelledby="week-h">
+    <h2 id="week-h">이번 주 할 일</h2>
+    <div class="week-list" id="week"></div>
+    <div class="legend" aria-label="등급 뜻">
+      <span><i class="grade g-A">A</i>좋음 · 과거 손실 없음</span>
+      <span><i class="grade g-B">B</i>보통 · 가끔 손실</span>
+      <span><i class="grade g-C">C</i>주의 · 손실 잦음</span>
+    </div>
+  </section>
+
+  <div class="split">
+  <section aria-labelledby="cal-h" style="display:grid;gap:12px;min-width:0">
+    <div class="cal-head">
+      <h2 id="cal-h"></h2>
+      <div class="nav">
+        <button type="button" id="prev" aria-label="이전 달">이전 달</button>
+        <button type="button" id="next" aria-label="다음 달">다음 달</button>
+      </div>
+    </div>
+    <div class="cal"><div class="grid" id="grid"></div></div>
+    <div class="legend">
+      <span><i class="tag t-청약">청</i>청약 · 돈 넣는 날</span>
+      <span><i class="tag t-환불">환</i>환불 · 남은 돈 돌려받는 날</span>
+      <span><i class="tag t-상장">상</i>상장 · 팔 수 있는 첫날</span>
+    </div>
+  </section>
+
+  <div class="side">
+  <aside class="detail dlg" id="detail" aria-live="polite" aria-labelledby="dlg-name" hidden></aside>
+  <section class="agenda" aria-labelledby="ag-h">
+    <h2 id="ag-h">다가오는 일정</h2>
+    <div class="agenda" id="agenda"></div>
+  </section>
+  </div>
+  </div>
+
+  <footer>
+    <span>등급은 기관 경쟁률·공모가 확정 위치·의무보유확약으로 매깁니다. 2023년 5월 이후 상장한 265종목에서 A는 손실 0건(시초가 중앙값 +116%), B는 10%, C는 40%가 손실이었습니다.</span>
+    <span>일정은 38커뮤니케이션에서 모으고, 청약일·납입일은 금융감독원 DART 증권신고서와 대조합니다. 투자 판단은 본인 몫입니다.</span>
+  </footer>
+</div>
+
+
+<script id="ipo-data" type="application/json">{"generated_at": "2026-11-12T20:40", "items": [{"name": "덕양에너젠", "sub_start": "2026-01-20", "sub_end": "2026-01-21", "refund": "2026-01-23", "listing": "2026-01-30", "price": 10000.0, "band_low": 8500.0, "band_high": 10000.0, "inst_ratio": 650.14, "lockup_pct": 14.38, "retail_ratio": 1354.4, "underwriter": "NH투자증권,미래에셋증권", "sector": "산소, 질소 및 기타 산업용 가스 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2267", "ohlc": {"o": 21050, "h": 39500, "l": 20250, "c": 34850}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "케이뱅크 (유가)", "sub_start": "2026-02-20", "sub_end": "2026-02-23", "refund": "2026-02-25", "listing": "2026-03-05", "price": 8300.0, "band_low": 8300.0, "band_high": 9500.0, "inst_ratio": 198.53, "lockup_pct": 12.39, "retail_ratio": 134.59, "underwriter": "NH투자증권,삼성증권,신한투자증권", "sector": "은행 및 저축기관", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2271", "ohlc": {"o": 9000, "h": 9880, "l": 8120, "c": 8330}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "액스비스", "sub_start": "2026-02-23", "sub_end": "2026-02-24", "refund": "2026-02-26", "listing": "2026-03-09", "price": 11500.0, "band_low": 10100.0, "band_high": 11500.0, "inst_ratio": 1124.21, "lockup_pct": 75.7, "retail_ratio": 2711.06, "underwriter": "미래에셋증권", "sector": "전자 응용 절삭기계 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2268", "ohlc": {"o": 46000, "h": 46000, "l": 40000, "c": 46000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "에스팀", "sub_start": "2026-02-23", "sub_end": "2026-02-24", "refund": "2026-02-26", "listing": "2026-03-06", "price": 8500.0, "band_low": 7000.0, "band_high": 8500.0, "inst_ratio": 1334.91, "lockup_pct": 42.45, "retail_ratio": 1960.87, "underwriter": "한국투자증권", "sector": "전시, 컨벤션 및 행사 대행업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2273", "ohlc": {"o": 30650, "h": 34000, "l": 30650, "c": 34000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "카나프테라퓨틱스", "sub_start": "2026-03-05", "sub_end": "2026-03-06", "refund": "2026-03-10", "listing": "2026-03-16", "price": 20000.0, "band_low": 16000.0, "band_high": 20000.0, "inst_ratio": 962.1, "lockup_pct": 76.1, "retail_ratio": 1899.29, "underwriter": "한국투자증권", "sector": "자연과학 및 공학 연구개발업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2269", "ohlc": {"o": 68100, "h": 70000, "l": 49800, "c": 50600}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "아이엠바이오로직스", "sub_start": "2026-03-11", "sub_end": "2026-03-12", "refund": "2026-03-16", "listing": "2026-03-20", "price": 26000.0, "band_low": 19000.0, "band_high": 26000.0, "inst_ratio": 839.23, "lockup_pct": 76.01, "retail_ratio": 1806.0, "underwriter": "한국투자증권,신한투자증권", "sector": "연구개발업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2272", "ohlc": {"o": 104000, "h": 104000, "l": 101500, "c": 104000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "메쥬", "sub_start": "2026-03-16", "sub_end": "2026-03-17", "refund": "2026-03-19", "listing": "2026-03-26", "price": 21600.0, "band_low": 16700.0, "band_high": 21600.0, "inst_ratio": 1108.93, "lockup_pct": 75.4, "retail_ratio": 2428.25, "underwriter": "신한투자증권", "sector": "전기식 진단 및 요법 기기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2274", "ohlc": {"o": 66000, "h": 73500, "l": 37800, "c": 39000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "한패스", "sub_start": "2026-03-16", "sub_end": "2026-03-17", "refund": "2026-03-19", "listing": "2026-03-25", "price": 19000.0, "band_low": 17000.0, "band_high": 19000.0, "inst_ratio": 1172.59, "lockup_pct": 27.43, "retail_ratio": 1673.04, "underwriter": "한국투자증권,대신증권", "sector": "그 외 기타 분류 안된 금융업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2276", "ohlc": {"o": 37100, "h": 47750, "l": 25800, "c": 27200}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "리센스메디컬", "sub_start": "2026-03-19", "sub_end": "2026-03-20", "refund": "2026-03-24", "listing": "2026-03-31", "price": 11000.0, "band_low": 9000.0, "band_high": 11000.0, "inst_ratio": 1352.63, "lockup_pct": 63.92, "retail_ratio": 2097.68, "underwriter": "한국투자증권,KB증권", "sector": "그외 기타 의료용 기기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2270", "ohlc": {"o": 37600, "h": 39900, "l": 18450, "c": 18450}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "인벤테라", "sub_start": "2026-03-23", "sub_end": "2026-03-24", "refund": "2026-03-26", "listing": "2026-04-02", "price": 16600.0, "band_low": 12100.0, "band_high": 16600.0, "inst_ratio": 1328.82, "lockup_pct": 43.06, "retail_ratio": 1913.0, "underwriter": "NH투자증권,유진투자증권", "sector": "의학 및 약학 연구개발업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2275", "ohlc": {"o": 39150, "h": 60200, "l": 29800, "c": 35250}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "채비(구.대영채비)", "sub_start": "2026-04-20", "sub_end": "2026-04-21", "refund": "2026-04-23", "listing": "2026-04-29", "price": 12300.0, "band_low": 12300.0, "band_high": 15300.0, "inst_ratio": 55.23, "lockup_pct": 6.49, "retail_ratio": 302.0, "underwriter": "KB증권,삼성증권,대신증권,하나증권", "sector": "기타 발전기 및 전기변환장치 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2281", "ohlc": {"o": 15250, "h": 30750, "l": 15250, "c": 22550}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "코스모로보틱스(구.엑소아틀레트아시아)", "sub_start": "2026-04-27", "sub_end": "2026-04-28", "refund": "2026-04-30", "listing": "2026-05-11", "price": 6000.0, "band_low": 5300.0, "band_high": 6000.0, "inst_ratio": 1140.11, "lockup_pct": 73.03, "retail_ratio": 2013.0, "underwriter": "유진투자증권,NH투자증권,유안타증권", "sector": "의료용 기기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2278", "ohlc": {"o": 23500, "h": 24000, "l": 20100, "c": 24000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "폴레드", "sub_start": "2026-05-04", "sub_end": "2026-05-06", "refund": "2026-05-08", "listing": "2026-05-14", "price": 5000.0, "band_low": 4100.0, "band_high": 5000.0, "inst_ratio": 1486.66, "lockup_pct": 67.24, "retail_ratio": 3169.86, "underwriter": "NH투자증권", "sector": "자동차용 신품 의자 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2286", "ohlc": {"o": 20000, "h": 20000, "l": 16500, "c": 20000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "마키나락스", "sub_start": "2026-05-11", "sub_end": "2026-05-12", "refund": "2026-05-14", "listing": "2026-05-20", "price": 15000.0, "band_low": 12500.0, "band_high": 15000.0, "inst_ratio": 1196.08, "lockup_pct": 78.17, "retail_ratio": 2807.8, "underwriter": "미래에셋증권,현대차증권", "sector": "응용 소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2285", "ohlc": {"o": 60000, "h": 60000, "l": 60000, "c": 60000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "피스피스스튜디오", "sub_start": "2026-05-26", "sub_end": "2026-05-27", "refund": "2026-05-29", "listing": "2026-06-08", "price": 21500.0, "band_low": 19000.0, "band_high": 21500.0, "inst_ratio": 847.76, "lockup_pct": 5.68, "retail_ratio": 1194.94, "underwriter": "NH투자증권,미래에셋증권", "sector": "편조의복 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2287", "ohlc": {"o": 32000, "h": 42000, "l": 13650, "c": 13730}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "스트라드비젼", "sub_start": "2026-06-18", "sub_end": "2026-06-19", "refund": "2026-06-23", "listing": "2026-06-30", "price": 12000.0, "band_low": 12000.0, "band_high": 14000.0, "inst_ratio": 381.3, "lockup_pct": 2.77, "retail_ratio": 45.83, "underwriter": "KB증권", "sector": "응용소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2289", "ohlc": {"o": 11020, "h": 11080, "l": 7200, "c": 7200}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "져스텍", "sub_start": "2026-06-18", "sub_end": "2026-06-19", "refund": "2026-06-23", "listing": "2026-06-29", "price": 12500.0, "band_low": 10500.0, "band_high": 12500.0, "inst_ratio": 1294.99, "lockup_pct": 47.2, "retail_ratio": 2783.89, "underwriter": "삼성증권", "sector": "전동기 및 발전기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2291", "ohlc": {"o": 35350, "h": 42500, "l": 17070, "c": 17530}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "매드업", "sub_start": "2026-06-23", "sub_end": "2026-06-24", "refund": "2026-06-26", "listing": "2026-07-01", "price": 8000.0, "band_low": 7000.0, "band_high": 8000.0, "inst_ratio": 1396.29, "lockup_pct": 27.39, "retail_ratio": 3304.76, "underwriter": "미래에셋증권", "sector": "소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2290", "ohlc": {"o": 22250, "h": 22500, "l": 10000, "c": 10080}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "레몬헬스케어", "sub_start": "2026-06-24", "sub_end": "2026-06-25", "refund": "2026-06-29", "listing": "2026-07-06", "price": 10000.0, "band_low": 7500.0, "band_high": 10000.0, "inst_ratio": 1238.0, "lockup_pct": 6.92, "retail_ratio": 1510.57, "underwriter": "KB증권", "sector": "소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2293", "ohlc": {"o": 16560, "h": 20300, "l": 9370, "c": 9400}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "레메디", "sub_start": "2026-07-01", "sub_end": "2026-07-02", "refund": "2026-07-06", "listing": "2026-07-13", "price": 20700.0, "band_low": 17800.0, "band_high": 20700.0, "inst_ratio": 1146.41, "lockup_pct": 17.93, "retail_ratio": 1706.71, "underwriter": "KB증권", "sector": "의료용 기기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2296", "ohlc": {"o": 30750, "h": 34650, "l": 20500, "c": 22000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "에이치엘지노믹스", "sub_start": "2026-07-13", "sub_end": "2026-07-14", "refund": "2026-07-16", "listing": "2026-07-24", "price": 21500.0, "band_low": 18500.0, "band_high": 21500.0, "inst_ratio": 714.52, "lockup_pct": 1.91, "retail_ratio": 666.78, "underwriter": "KB증권,IBK투자증권", "sector": "기초 의약물질 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2301", "ohlc": {"o": 21500, "h": 25550, "l": 13800, "c": 14790}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "인제니아테라퓨틱스", "sub_start": "2026-07-30", "sub_end": "2026-07-31", "refund": "2026-08-04", "listing": "2026-08-18", "price": 12000.0, "band_low": 12000.0, "band_high": 14500.0, "inst_ratio": 50.4, "lockup_pct": 2.23, "retail_ratio": 3.09, "underwriter": "삼성증권", "sector": "자연과학 및 공학 연구개발업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2298", "ohlc": {"o": 10960, "h": 17990, "l": 9900, "c": 17990}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "딜리셔스", "sub_start": "2026-08-03", "sub_end": "2026-08-04", "refund": "2026-08-06", "listing": "2026-08-12", "price": 7000.0, "band_low": 5000.0, "band_high": 7000.0, "inst_ratio": 184.06, "lockup_pct": 0.1, "retail_ratio": 10.29, "underwriter": "한국투자증권", "sector": "전자상거래 소매 중개업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2302", "ohlc": {"o": 6000, "h": 7360, "l": 5030, "c": 5140}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "케이앤에스아이앤씨", "sub_start": "2026-08-04", "sub_end": "2026-08-05", "refund": "2026-08-07", "listing": "2026-08-13", "price": 11000.0, "band_low": 9000.0, "band_high": 11000.0, "inst_ratio": 938.24, "lockup_pct": 0.78, "retail_ratio": 1079.55, "underwriter": "IBK투자증권", "sector": "기타 무선 통신장비 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2299", "ohlc": {"o": 21000, "h": 24600, "l": 14720, "c": 15380}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "기도산업", "sub_start": "2026-08-11", "sub_end": "2026-08-12", "refund": "2026-08-14", "listing": "2026-08-21", "price": 28400.0, "band_low": 24800.0, "band_high": 28400.0, "inst_ratio": 213.31, "lockup_pct": 0.0, "retail_ratio": 5.53, "underwriter": "미래에셋증권,삼성증권", "sector": "기타 봉제의복 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2305", "ohlc": {"o": 28000, "h": 29500, "l": 18250, "c": 18580}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "해치텍", "sub_start": "2026-08-12", "sub_end": "2026-08-13", "refund": "2026-08-18", "listing": "2026-08-25", "price": 23000.0, "band_low": 23000.0, "band_high": 28000.0, "inst_ratio": 101.91, "lockup_pct": 15.08, "retail_ratio": 25.73, "underwriter": "DB증권", "sector": "비메모리용 및 기타 전자집적회로 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2304", "ohlc": {"o": 20500, "h": 21400, "l": 13900, "c": 13930}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "니어스랩", "sub_start": "2026-08-12", "sub_end": "2026-08-13", "refund": "2026-08-18", "listing": "2026-08-24", "price": 41200.0, "band_low": 30000.0, "band_high": 41200.0, "inst_ratio": 743.49, "lockup_pct": 1.26, "retail_ratio": 522.99, "underwriter": "삼성증권", "sector": "항공기,우주선 및 보조장치 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2303", "ohlc": {"o": 40500, "h": 42000, "l": 28650, "c": 28650}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "스카이랩스", "sub_start": "2026-08-26", "sub_end": "2026-08-27", "refund": "2026-08-31", "listing": "2026-09-04", "price": 10000.0, "band_low": 13000.0, "band_high": 16000.0, "inst_ratio": 63.41, "lockup_pct": 0.17, "retail_ratio": 2.85, "underwriter": "한국투자증권", "sector": "의료용 기기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2306", "ohlc": {"o": 8500, "h": 28750, "l": 8200, "c": 23500}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "네오사피엔스", "sub_start": "2026-09-10", "sub_end": "2026-09-11", "refund": "2026-09-15", "listing": "2026-09-21", "price": 10000.0, "band_low": 13800.0, "band_high": 15800.0, "inst_ratio": 219.56, "lockup_pct": 8.98, "retail_ratio": 1047.78, "underwriter": "대신증권", "sector": "소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2308", "ohlc": {"o": 25250, "h": 40000, "l": 25000, "c": 36900}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "와이즈플래닛컴퍼니", "sub_start": "2026-09-14", "sub_end": "2026-09-15", "refund": "2026-09-17", "listing": "2026-09-23", "price": 12000.0, "band_low": 10000.0, "band_high": 12000.0, "inst_ratio": 1248.47, "lockup_pct": 3.65, "retail_ratio": 1477.65, "underwriter": "대신증권", "sector": "광고물 문안, 도안, 설계 등 작성업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2311", "ohlc": {"o": 42750, "h": 48000, "l": 33350, "c": 45700}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "빅웨이브로보틱스", "sub_start": "2026-09-15", "sub_end": "2026-09-16", "refund": "2026-09-18", "listing": "2026-09-29", "price": 18000.0, "band_low": 15000.0, "band_high": 18000.0, "inst_ratio": 1109.37, "lockup_pct": 18.14, "retail_ratio": 1375.34, "underwriter": "유진투자증권,미래에셋증권", "sector": "포털 및 기타 인터넷 정보매개 서비스업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2294", "ohlc": {"o": 56000, "h": 60000, "l": 26500, "c": 27050}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "덕산넵코어스(구.넵코어스)", "sub_start": "2026-09-16", "sub_end": "2026-09-17", "refund": "2026-09-21", "listing": "2026-09-30", "price": 14600.0, "band_low": 12400.0, "band_high": 14600.0, "inst_ratio": 868.64, "lockup_pct": 4.05, "retail_ratio": 332.82, "underwriter": "대신증권", "sector": "기타 무선 통신장비 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2309", "ohlc": {"o": 27100, "h": 28700, "l": 16800, "c": 16830}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "글로벌테크놀로지", "sub_start": "2026-09-16", "sub_end": "2026-09-17", "refund": "2026-09-21", "listing": "2026-09-29", "price": 10000.0, "band_low": 13000.0, "band_high": 15000.0, "inst_ratio": 123.19, "lockup_pct": 0.27, "retail_ratio": 57.15, "underwriter": "한국투자증권", "sector": "전기용 기계ㆍ장비 및 관련 기자재 도매업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2310", "ohlc": {"o": 21150, "h": 29750, "l": 14200, "c": 14500}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "브릴스", "sub_start": "2026-09-17", "sub_end": "2026-09-18", "refund": "2026-09-22", "listing": "2026-10-01", "price": 19500.0, "band_low": 16500.0, "band_high": 19500.0, "inst_ratio": 1187.74, "lockup_pct": 21.75, "retail_ratio": 1676.26, "underwriter": "IBK투자증권", "sector": "그 외 기타 특수목적용 기계 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2307", "ohlc": {"o": 61800, "h": 62100, "l": 30050, "c": 31100}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "멜콘(구.에스앤에프솔루션)", "sub_start": "2026-10-01", "sub_end": "2026-10-02", "refund": "2026-10-07", "listing": "2026-10-15", "price": 12300.0, "band_low": 10700.0, "band_high": 12300.0, "inst_ratio": 1136.84, "lockup_pct": 36.07, "retail_ratio": 1741.48, "underwriter": "대신증권", "sector": "반도체 제조용 기계 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2315", "ohlc": {"o": 27400, "h": 28800, "l": 15780, "c": 17120}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "진코스텍", "sub_start": "2026-10-02", "sub_end": "2026-10-06", "refund": "2026-10-08", "listing": "2026-10-15", "price": 23500.0, "band_low": 19500.0, "band_high": 23500.0, "inst_ratio": 1097.62, "lockup_pct": 5.29, "retail_ratio": 685.0, "underwriter": "하나증권", "sector": "기타 화학제품 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2320", "ohlc": {"o": 24000, "h": 30800, "l": 14350, "c": 14350}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "엘리스그룹", "sub_start": "2026-10-07", "sub_end": "2026-10-08", "refund": "2026-10-13", "listing": "2026-10-20", "price": 90500.0, "band_low": 70400.0, "band_high": 90500.0, "inst_ratio": 388.84, "lockup_pct": 13.7, "retail_ratio": 408.0, "underwriter": "미래에셋증권,삼성증권", "sector": "응용 소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2316", "ohlc": {"o": 75700, "h": 77700, "l": 56500, "c": 61600}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "엠에스바이오", "sub_start": "2026-10-12", "sub_end": "2026-10-13", "refund": "2026-10-15", "listing": "2026-10-22", "price": 7800.0, "band_low": 6800.0, "band_high": 7800.0, "inst_ratio": 1096.56, "lockup_pct": 30.62, "retail_ratio": 1538.51, "underwriter": "KB증권", "sector": "그 외 기타 의료용 기기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2324", "ohlc": {"o": 16000, "h": 19650, "l": 12320, "c": 13620}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "디티에스(구.동양티에스)", "sub_start": "2026-10-13", "sub_end": "2026-10-14", "refund": "2026-10-16", "listing": "2026-10-23", "price": 18500.0, "band_low": 17000.0, "band_high": 18500.0, "inst_ratio": 983.98, "lockup_pct": 13.31, "retail_ratio": 986.99, "underwriter": "대신증권,유진증권", "sector": "증류기,열교환기 및 가스발생기 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2326", "ohlc": {"o": 32350, "h": 40750, "l": 23850, "c": 26950}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "크리에이츠", "sub_start": "2026-10-20", "sub_end": "2026-10-21", "refund": "2026-10-23", "listing": "2026-10-30", "price": 15000.0, "band_low": 15000.0, "band_high": 18000.0, "inst_ratio": 240.46, "lockup_pct": 0.0, "retail_ratio": 6.92, "underwriter": "삼성증권", "sector": "그 외 기타 달리 분류되지 않은 제품 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2323", "ohlc": {"o": 12000, "h": 12700, "l": 9000, "c": 9000}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "티앤이코리아", "sub_start": "2026-10-20", "sub_end": "2026-10-21", "refund": "2026-10-23", "listing": "2026-10-29", "price": 15300.0, "band_low": 12600.0, "band_high": 15300.0, "inst_ratio": 1041.02, "lockup_pct": 29.52, "retail_ratio": 1253.39, "underwriter": "신한투자증권", "sector": "산업용 송풍기 및 배기장치 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2322", "ohlc": {"o": 30350, "h": 34500, "l": 20200, "c": 21000}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "인텔리빅스", "sub_start": "2026-10-21", "sub_end": "2026-10-22", "refund": "2026-10-26", "listing": "2026-10-30", "price": 9000.0, "band_low": 7600.0, "band_high": 9000.0, "inst_ratio": 1234.3, "lockup_pct": 6.14, "retail_ratio": 1410.87, "underwriter": "미래에셋증권", "sector": "방송장비 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2328", "ohlc": {"o": 19290, "h": 35350, "l": 16450, "c": 29150}, "deposit_pct": null, "min_shares": null, "grade": "A"}, {"name": "이에스티", "sub_start": "2026-10-22", "sub_end": "2026-10-23", "refund": "2026-10-27", "listing": "2026-11-04", "price": 12400.0, "band_low": 10600.0, "band_high": 12400.0, "inst_ratio": 630.1, "lockup_pct": 0.24, "retail_ratio": 28.95, "underwriter": "대신증권", "sector": "그 외 기타 전자부품 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2332", "ohlc": {"o": 15890, "h": 20700, "l": 9370, "c": 9870}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "래블업", "sub_start": "2026-10-22", "sub_end": "2026-10-23", "refund": "2026-10-27", "listing": "2026-11-03", "price": 19000.0, "band_low": 19000.0, "band_high": 22000.0, "inst_ratio": 284.53, "lockup_pct": 2.09, "retail_ratio": 3.55, "underwriter": "NH투자증권", "sector": "시스템 소프트웨어 개발 및 공급업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2335", "ohlc": {"o": 19000, "h": 28350, "l": 13300, "c": 13320}, "deposit_pct": null, "min_shares": null, "grade": "C"}, {"name": "영광(구.영광공작소)", "sub_start": "2026-10-22", "sub_end": "2026-10-23", "refund": "2026-10-27", "listing": "2026-11-02", "price": 17000.0, "band_low": 14000.0, "band_high": 17000.0, "inst_ratio": 1000.07, "lockup_pct": 0.87, "retail_ratio": 684.73, "underwriter": "한국투자증권", "sector": "선박 구성부분품 제조업", "dart": null, "source": "http://www.38.co.kr/html/fund/?o=v&no=2333", "ohlc": {"o": 21350, "h": 37400, "l": 19920, "c": 20100}, "deposit_pct": null, "min_shares": null, "grade": "B"}, {"name": "바로팜", "sub_start": "2026-11-02", "sub_end": "2026-11-03", "refund": "2026-11-05", "listing": "2026-11-11", "price": 16400.0, "band_low": 16400.0, "band_high": 20200.0, "inst_ratio": 152.36, "lockup_pct": 0.03, "retail_ratio": 19.27, "underwriter": "미래에셋증권", "sector": "전자상거래 소매 중개업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2325", "ohlc": {"o": 16000, "h": 17370, "l": 11510, "c": 11740}, "deposit_pct": 50.0, "min_shares": 10, "grade": "C"}, {"name": "동원파츠", "sub_start": "2026-11-02", "sub_end": "2026-11-03", "refund": "2026-11-05", "listing": "2026-11-10", "price": 26500.0, "band_low": 23000.0, "band_high": 26500.0, "inst_ratio": 840.86, "lockup_pct": 16.61, "retail_ratio": 1219.37, "underwriter": "삼성증권", "sector": "반도체 제조용 기계 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2339", "ohlc": {"o": 51100, "h": 57300, "l": 27500, "c": 27850}, "deposit_pct": 50.0, "min_shares": 10, "grade": "A"}, {"name": "넥스아이", "sub_start": "2026-11-03", "sub_end": "2026-11-04", "refund": "2026-11-06", "listing": "2026-11-12", "price": 8000.0, "band_low": 10500.0, "band_high": 13000.0, "inst_ratio": 66.58, "lockup_pct": 0.06, "retail_ratio": 13.26, "underwriter": "한국투자증권", "sector": "의학 및 약학 연구개발업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2336", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": "C"}, {"name": "영광와이케이엠씨", "sub_start": "2026-11-04", "sub_end": "2026-11-05", "refund": "2026-11-09", "listing": "2026-11-16", "price": 11000.0, "band_low": 9400.0, "band_high": 11000.0, "inst_ratio": 1163.35, "lockup_pct": 7.21, "retail_ratio": 1342.66, "underwriter": "대신증권", "sector": "도장 및 기타 피막처리업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2342", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": "A"}, {"name": "옵토닉스", "sub_start": "2026-11-05", "sub_end": "2026-11-06", "refund": "2026-11-10", "listing": "2026-11-17", "price": 12000.0, "band_low": 10000.0, "band_high": 12000.0, "inst_ratio": 1201.81, "lockup_pct": 5.62, "retail_ratio": 1343.32, "underwriter": "한국투자증권", "sector": "광학렌즈 및 광학요소 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2338", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": "A"}, {"name": "에이엘로봇", "sub_start": "2026-11-06", "sub_end": "2026-11-09", "refund": "2026-11-11", "listing": "2026-11-18", "price": 17600.0, "band_low": 15700.0, "band_high": 17600.0, "inst_ratio": 871.74, "lockup_pct": 1.13, "retail_ratio": 834.73, "underwriter": "대신증권", "sector": "기타 기계 및 장비 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2331", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": "B"}, {"name": "하나에어로다이내믹스", "sub_start": "2026-11-10", "sub_end": "2026-11-11", "refund": "2026-11-13", "listing": "2026-11-20", "price": 5700.0, "band_low": 4700.0, "band_high": 5700.0, "inst_ratio": 1051.38, "lockup_pct": 4.16, "retail_ratio": 1851.14, "underwriter": "IBK투자증권", "sector": "항공기용 부품 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2334", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": "B"}, {"name": "엠비디", "sub_start": "2026-11-12", "sub_end": "2026-11-13", "refund": "2026-11-17", "listing": "2026-11-24", "price": 7000.0, "band_low": 9600.0, "band_high": 11700.0, "inst_ratio": 187.1, "lockup_pct": 0.0, "retail_ratio": null, "underwriter": "하나증권", "sector": "물질 검사, 측정 및 분석기구 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2321", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": "C"}, {"name": "에스에프씨", "sub_start": "2026-11-18", "sub_end": "2026-11-19", "refund": "2026-11-23", "listing": "2026-11-27", "price": null, "band_low": 31600.0, "band_high": 36100.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "미래에셋증권,한국투자증권,삼성증권", "sector": "사진용화학제품및감광재료제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2349", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "유캐스트", "sub_start": "2026-11-18", "sub_end": "2026-11-19", "refund": "2026-11-23", "listing": "2026-11-30", "price": null, "band_low": 19000.0, "band_high": 23000.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "유진투자증권,신영증권", "sector": "기타 무선 통신장비 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2352", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "아델", "sub_start": "2026-11-23", "sub_end": "2026-11-24", "refund": "2026-11-26", "listing": "2026-12-02", "price": null, "band_low": 18000.0, "band_high": 25000.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "삼성증권,미래에셋증권", "sector": "의학 및 약학 연구개발업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2345", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "제논", "sub_start": "2026-11-24", "sub_end": "2026-11-25", "refund": "2026-11-27", "listing": null, "price": null, "band_low": 9700.0, "band_high": 12200.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "삼성증권", "sector": "컴퓨터시스템 통합 자문, 구축 및 관리업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2341", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "케이엠에프", "sub_start": "2026-11-24", "sub_end": "2026-11-25", "refund": "2026-11-27", "listing": null, "price": null, "band_low": 15000.0, "band_high": 17800.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "IBK투자증권", "sector": "기타 식품 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2340", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "에이엔에이치스트럭쳐", "sub_start": "2026-11-27", "sub_end": "2026-11-30", "refund": "2026-12-02", "listing": null, "price": null, "band_low": 11200.0, "band_high": 13600.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "NH투자증권", "sector": "기타 엔지니어링 서비스업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2350", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "엔키화이트햇", "sub_start": "2026-12-01", "sub_end": "2026-12-02", "refund": "2026-12-04", "listing": null, "price": null, "band_low": 13000.0, "band_high": 16500.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "신영증권", "sector": "응용 소프트웨어 개발 및 공급업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2343", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "이노보테라퓨틱스", "sub_start": "2026-12-07", "sub_end": "2026-12-08", "refund": "2026-12-10", "listing": null, "price": null, "band_low": 20000.0, "band_high": 24000.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "한국투자증권", "sector": "의학 및 약학 연구개발업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2351", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "마더스제약", "sub_start": "2026-12-08", "sub_end": "2026-12-09", "refund": "2026-12-11", "listing": null, "price": null, "band_low": 11000.0, "band_high": 14500.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "KB증권,NH투자증권", "sector": "완제 의약품 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2359", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "인터엑스", "sub_start": "2026-12-09", "sub_end": "2026-12-10", "refund": "2026-12-14", "listing": null, "price": null, "band_low": 10000.0, "band_high": 13000.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "한국투자증권,BNK투자증권", "sector": "응용 소프트웨어 개발 및 공급업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2353", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "다비오", "sub_start": "2026-12-09", "sub_end": "2026-12-10", "refund": "2026-12-14", "listing": null, "price": null, "band_low": 12300.0, "band_high": 16600.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "대신증권", "sector": "응용 소프트웨어 개발 및 공급업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2358", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "씨아이에스케미칼", "sub_start": "2026-12-10", "sub_end": "2026-12-11", "refund": "2026-12-15", "listing": null, "price": null, "band_low": 5400.0, "band_high": 6800.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "KB증권", "sector": "알루미늄 제련, 정련 및 합금 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2348", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "KTE", "sub_start": "2026-12-14", "sub_end": "2026-12-15", "refund": "2026-12-17", "listing": null, "price": null, "band_low": 19000.0, "band_high": 23000.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "NH투자증권", "sector": "배전반 및 전기자동제어반 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2355", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}, {"name": "데스틴파워", "sub_start": "2026-12-14", "sub_end": "2026-12-15", "refund": "2026-12-17", "listing": null, "price": null, "band_low": 8000.0, "band_high": 11000.0, "inst_ratio": null, "lockup_pct": null, "retail_ratio": null, "underwriter": "한국투자증권", "sector": "전동기, 발전기 및 전기 변환장치 제조업", "dart": "ok", "source": "http://www.38.co.kr/html/fund/?o=v&no=2356", "ohlc": null, "deposit_pct": 50.0, "min_shares": 10, "grade": null}]}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('ipo-data').textContent);
+  const items = data.items;
+  let off = new Set();  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함)
+  let sel = null;       // 선택한 종목 idx (같은 이유로 위에 선언)
+  try { off = new Set(JSON.parse(localStorage.getItem('ipo-grade-off') || '[]')); } catch (_) {}
+  const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+  const MEANING = {
+    A: '좋음 — 같은 조건의 과거 101종목은 손실이 없었어요.',
+    B: '보통 — 과거 10%는 시초가가 공모가보다 낮았어요.',
+    C: '주의 — 과거 40%는 시초가가 공모가보다 낮았어요.',
+  };
+
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const md = s => { const d = parse(s); return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`; };
+  const won = v => v == null ? '-' : Math.round(v).toLocaleString('ko-KR') + '원';
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const gradeBadge = (g, big) => g ? `<i class="grade g-${g}">${g}</i>` : `<i class="grade g-none">${big ? '수요예측 전' : '대기'}</i>`;
+
+  // 일정 이벤트 펼치기 (청약은 평일만)
+  const events = [];
+  items.forEach((it, idx) => {
+    if (it.sub_start) {
+      const days = [];
+      for (let d = parse(it.sub_start); iso(d) <= it.sub_end; d.setDate(d.getDate() + 1)) {
+        if (d.getDay() % 6) days.push(iso(d));
+      }
+      // 바로 다음 날로 이어지면 달력에서 막대 하나로 잇는다 (주말을 건너뛰면 끊김)
+      const adj = (a, b) => parse(b) - parse(a) === 864e5;
+      days.forEach((k, i) => events.push({ date: k, type: '청약', idx,
+        joinL: i > 0 && adj(days[i - 1], k), joinR: i < days.length - 1 && adj(k, days[i + 1]) }));
+    }
+    if (it.refund) events.push({ date: it.refund, type: '환불', idx });
+    if (it.listing) events.push({ date: it.listing, type: '상장', idx });
+  });
+  const ORDER = { 상장: 0, 청약: 1, 환불: 2 };  // 중요도 순
+  events.sort((a, b) => a.date.localeCompare(b.date) || ORDER[a.type] - ORDER[b.type]);
+  const byDate = {};
+  events.forEach(e => (byDate[e.date] ||= []).push(e));
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayIso = iso(today);
+
+  if (data.generated_at) {
+    const g = new Date(data.generated_at);
+    document.getElementById('asof').textContent =
+      `${g.getMonth() + 1}월 ${g.getDate()}일 ${pad(g.getHours())}:${pad(g.getMinutes())} 기준 · 스팩 제외 ${items.length}종목`;
+  }
+
+  // 최소 청약 증거금 = 공모가(미정이면 희망 상단) × 최소 주수 × 증거금률
+  const uw = it => esc((it.underwriter || '').split(',').map(x => x.trim()).join(', '));
+  const minCash = it => {
+    const p = it.price || it.band_high, n = it.min_shares || 10;
+    return p ? `최소 ${n}주 ${won(p * n * (it.deposit_pct || 50) / 100)}${it.price ? '' : ' (상단 기준)'}` : '최소 금액 미정';
+  };
+
+  // 이번 주 할 일: 오늘부터 7일
+  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+  const soon = events.filter(e => e.date >= todayIso && e.date < iso(weekEnd));
+  // 청약은 종목당 한 줄로 묶기
+  const seen = new Set();
+  const todo = soon.filter(e => { const k = e.type + e.idx; if (seen.has(k)) return false; seen.add(k); return true; });
+  const weekEl = document.getElementById('week');
+  weekEl.innerHTML = todo.length ? todo.map(e => {
+    const it = items[e.idx];
+    const when = e.type === '청약' && it.sub_end !== it.sub_start ? `${md(it.sub_start)}<small>~ ${md(it.sub_end)}</small>` : md(e.date);
+    const note = e.type === '청약'
+      ? (it.price ? `공모가 ${won(it.price)} 확정` : `공모가 미정 (${won(it.band_low)}~${won(it.band_high)})`)
+      : (e.type === '환불' ? '청약 증거금 남은 돈 입금' : `공모가 ${won(it.price)}`) + (it.underwriter ? ` · ${uw(it)}` : '');
+    return `<button type="button" class="todo" data-idx="${e.idx}" data-g="${it.grade || 'none'}">
+      <span class="when num">${when}</span>
+      <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${uw(it) || '주관사 미정'} · ${minCash(it)}</small>` : ''}</span>
+      ${gradeBadge(it.grade, false)}</button>`;
+  }).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
+
+  // 월 달력
+  const months = [...new Set(events.map(e => e.date.slice(0, 7)))].sort();
+  let cur = months.includes(todayIso.slice(0, 7)) ? todayIso.slice(0, 7) : (months.find(m => m >= todayIso.slice(0, 7)) || months[0] || todayIso.slice(0, 7));
+  const grid = document.getElementById('grid');
+  function drawMonth() {
+    const [y, m] = cur.split('-').map(Number);
+    document.getElementById('cal-h').textContent = `${y}년 ${m}월`;
+    const first = new Date(y, m - 1, 1);
+    const start = new Date(first); start.setDate(1 - first.getDay());
+    let html = DOW.map((d, i) => `<div class="dow${i === 0 ? ' sun' : ''}">${d}</div>`).join('');
+    const chip = e => {
+      const it = items[e.idx];
+      const join = (e.joinL ? ' joinL' : '') + (e.joinR ? ' joinR' : '');
+      const rest = e.joinL ? ' tabindex="-1" aria-hidden="true"' : '';
+      return `<button type="button" class="chip t-${e.type}${join}" data-idx="${e.idx}" data-g="${it.grade || 'none'}" title="${e.type} · ${esc(it.name)}"${rest}><b>${e.type[0]}</b>${esc(it.name)}${it.grade ? `<span class="gr">${it.grade}</span>` : ''}</button>`;
+    };
+    for (let w = 0; w < 6; w++) {
+      const days = Array.from({ length: 7 }, (_, c) => { const d = new Date(start); d.setDate(start.getDate() + w * 7 + c); return d; });
+      if (w === 5 && days[0].getMonth() !== m - 1) break;
+      // 주 단위로 줄(slot) 배정: 상장 > 청약 > 환불 순으로 위 줄. 이틀 청약은 같은 줄을 유지해 막대가 어긋나지 않게.
+      const runs = {};
+      days.forEach((d, c) => (byDate[iso(d)] || []).forEach(e => {
+        if (!off.has(items[e.idx].grade || 'none')) (runs[e.type + e.idx] ||= { e, cols: [] }).cols.push([c, e]);
+      }));
+      const slots = days.map(() => []);
+      Object.values(runs).sort((a, b) => ORDER[a.e.type] - ORDER[b.e.type] || a.cols[0][0] - b.cols[0][0] || a.e.idx - b.e.idx)
+        .forEach(r => { let s = 0; while (r.cols.some(([c]) => slots[c][s])) s++; r.cols.forEach(([c, e]) => slots[c][s] = chip(e)); });
+      days.forEach((d, c) => {
+        const k = iso(d);
+        const cls = ['day', d.getDay() % 6 ? '' : 'weekend', d.getMonth() !== m - 1 ? 'out' : '', k === todayIso ? 'today' : ''].join(' ');
+        const chips = Array.from(slots[c], x => x || '<span class="chip gap" aria-hidden="true">&nbsp;</span>').join('');
+        html += `<div class="${cls}"><span class="d num">${d.getDate()}</span>${chips}</div>`;
+      });
+    }
+    grid.innerHTML = html;
+    applyFilter();
+    markSel();
+    document.getElementById('prev').disabled = !months.some(x => x < cur);
+    document.getElementById('next').disabled = !months.some(x => x > cur);
+  }
+  document.getElementById('prev').onclick = () => { cur = [...months].reverse().find(x => x < cur) || cur; drawMonth(); };
+  document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
+  drawMonth();
+
+  // 다가오는 일정
+  // 청약은 종목당 한 줄(남은 첫날에) + 끝나는 날짜
+  const subSeen = new Set(), agByDate = {};
+  events.filter(e => e.date >= todayIso).forEach(e => {
+    if (e.type === '청약') { if (subSeen.has(e.idx)) return; subSeen.add(e.idx); }
+    (agByDate[e.date] ||= []).push(e);
+  });
+  const until = e => {
+    const it = items[e.idx];
+    if (e.type !== '청약' || it.sub_end === e.date) return '';
+    const d = parse(it.sub_end);
+    return ` <span class="until num">~${d.getMonth() + 1}/${d.getDate()}</span>`;
+  };
+  const uwShort = u => { const xs = u.split(','); return xs[0].trim() + (xs.length > 1 ? ` 외 ${xs.length - 1}` : ''); };  // 좁은 칸용
+  const upcoming = Object.keys(agByDate).sort();
+  document.getElementById('agenda').innerHTML = upcoming.length ? upcoming.map(k => `
+    <div class="agenda-day"><div class="date num">${md(k)}</div><div class="agenda-items">
+      ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}" data-g="${items[e.idx].grade || 'none'}"><i class="tag t-${e.type}">${e.type}</i>
+        <span class="nm">${esc(items[e.idx].name)}${until(e)}${items[e.idx].underwriter ? `<small class="uw">${esc(uwShort(items[e.idx].underwriter))}</small>` : ''}</span>${gradeBadge(items[e.idx].grade, false)}</button>`).join('')}
+    </div></div>`).join('') : '<div class="empty">앞으로 잡힌 일정이 없어요.</div>';
+
+  // 등급 필터: 꺼진 등급의 일정을 숨기고, 비게 된 날짜·목록은 안내문으로
+  function applyFilter() {
+    document.querySelectorAll('.fbtn').forEach(b => b.setAttribute('aria-pressed', String(!off.has(b.dataset.f))));
+    document.querySelectorAll('[data-g]').forEach(el => { el.hidden = off.has(el.dataset.g); });
+    document.querySelectorAll('.agenda-day').forEach(d => { d.hidden = !d.querySelector('.row:not([hidden])'); });
+    const msg = (id, sel, text) => {
+      const box = document.getElementById(id);
+      let m = box.querySelector('.filtered');
+      const none = box.querySelector(sel) && !box.querySelector(sel + ':not([hidden])');
+      if (none && !m) box.insertAdjacentHTML('beforeend', `<div class="empty filtered">${text}</div>`);
+      if (!none && m) m.remove();
+    };
+    msg('week', '.todo', '선택한 등급의 일정이 이번 주에는 없어요.');
+    msg('agenda', '.agenda-day', '선택한 등급의 일정이 없어요.');
+  }
+  document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
+    off.has(b.dataset.f) ? off.delete(b.dataset.f) : off.add(b.dataset.f);
+    try { localStorage.setItem('ipo-grade-off', JSON.stringify([...off])); } catch (_) {}
+    drawMonth();
+  });
+  applyFilter();
+
+  // 상세 패널: 넓은 화면은 오른쪽 칸 위, 좁은 화면은 아래쪽 시트. 달력은 가리지 않고 같은 종목 일정만 강조.
+  const body = document.getElementById('detail');
+  function markSel() {
+    grid.classList.toggle('focus', sel != null);
+    document.querySelectorAll('.chip, .row, .todo').forEach(el => el.classList.toggle('sel', sel != null && Number(el.dataset.idx) === sel));
+  }
+  function closeDetail() { sel = null; body.hidden = true; markSel(); }
+  const dartText = s => !s ? '대조 안 함 (지난 종목)' : s === 'ok' ? '청약일·납입일이 증권신고서와 일치' : s === 'no_key' ? '대조 안 함' : s === 'not_found' ? '증권신고서를 찾지 못함' : `확인 필요 (${esc(s)})`;
+  // 상장일 시가·고가·저가·종가, 공모가 대비 %
+  function ohlcBox(it) {
+    if (!it.ohlc) return it.listing && it.listing < todayIso ? '<p class="src">상장일 시세를 못 받았어요.</p>' : '';
+    const cell = (label, v) => {
+      const p = it.price ? (v / it.price - 1) * 100 : null;
+      const cls = p == null ? '' : p > 0 ? 'up' : p < 0 ? 'down' : '';
+      return `<div><span>${label}</span><b class="num">${won(v)}</b><small class="num ${cls}">${p == null ? '' : (p > 0 ? '+' : '') + p.toFixed(1) + '%'}</small></div>`;
+    };
+    const o = it.ohlc;
+    return `<div class="ohlc" aria-label="상장일 시세"><h3>상장일 ${md(it.listing)} 시세 <small>공모가 대비</small></h3>
+      ${cell('시가', o.o)}${cell('고가', o.h)}${cell('저가', o.l)}${cell('종가', o.c)}</div>`;
+  }
+  function open(idx) {
+    const it = items[idx];
+    const range = (a, b) => a ? (a === b ? md(a) : `${md(a)} ~ ${md(b)}`) : '-';
+    const priceLine = it.price
+      ? `${won(it.price)} <span class="sub" style="display:inline">(희망 ${won(it.band_low)}~${won(it.band_high)})</span>`
+      : `미정 · 희망 ${won(it.band_low)}~${won(it.band_high)}`;
+    body.innerHTML = `
+      <div class="dlg-head">${gradeBadge(it.grade, false)}<h2 id="dlg-name">${esc(it.name)}</h2>
+        <button type="button" class="close" id="dlg-close">닫기</button></div>
+      <div class="verdict g-${it.grade || 'none'}">${it.grade ? MEANING[it.grade] : '아직 기관 수요예측 결과가 없어요. 결과가 나오면 등급이 붙어요.'}</div>
+      <div class="steps">
+        <span><i class="tag t-청약">청약</i><b class="num">${range(it.sub_start, it.sub_end)}</b></span>
+        <span><i class="tag t-환불">환불</i><b class="num">${it.refund ? md(it.refund) : '-'}</b></span>
+        <span><i class="tag t-상장">상장</i><b class="num">${it.listing ? md(it.listing) : '미정'}</b></span>
+      </div>
+      ${ohlcBox(it)}
+      <dl>
+        <dt>공모가</dt><dd class="num">${priceLine}</dd>
+        <dt>기관 경쟁률</dt><dd class="num">${it.inst_ratio == null ? '-' : it.inst_ratio.toLocaleString('ko-KR') + ' : 1'}</dd>
+        <dt>의무보유확약</dt><dd class="num">${it.lockup_pct == null ? '-' : it.lockup_pct + '%'}</dd>
+        <dt>일반 청약 경쟁률</dt><dd class="num">${it.retail_ratio == null ? '-' : it.retail_ratio.toLocaleString('ko-KR') + ' : 1'}</dd>
+        <dt>주간사</dt><dd>${uw(it) || '-'}</dd>
+        <dt>최소 청약금</dt><dd class="num">${minCash(it).replace('최소 ', '')}</dd>
+        <dt>업종</dt><dd>${esc(it.sector || '-')}</dd>
+        <dt>DART 대조</dt><dd>${dartText(it.dart)}</dd>
+      </dl>
+      <p class="src">출처: <a href="${esc(it.source)}" target="_blank" rel="noopener">38커뮤니케이션 상세</a></p>`;
+    document.getElementById('dlg-close').onclick = closeDetail;
+    sel = idx; body.hidden = false; markSel();
+    // 상장일이 다른 달이면 청약 달 그대로 두고 강조만. 패널은 맨 위로.
+    body.scrollTop = 0;
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-idx]');
+    if (!b) return;
+    const idx = Number(b.dataset.idx);
+    idx === sel ? closeDetail() : open(idx);  // 같은 종목 다시 누르면 닫힘
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && sel != null) closeDetail(); });
+})();
+</script>

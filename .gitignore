@@ -1,0 +1,5 @@
+.env
+__pycache__/
+_site/
+_preview.html
+_m.html
