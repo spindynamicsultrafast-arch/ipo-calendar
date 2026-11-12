@@ -72,7 +72,7 @@ button { font: inherit; color: inherit; }
 .todo { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; text-align: left;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
 .todo:hover { border-color: var(--accent); }
-.todo .when { font-size: 1.05rem; font-weight: 600; width: 6.2em; }
+.todo .when { font-size: 1.05rem; font-weight: 600; min-width: 6.2em; }  /* 날짜가 길면 칸이 늘어남 (라벨과 안 붙게) */
 .todo .when small { display: block; font-size: 0.85rem; font-weight: 500; color: var(--muted); }
 .todo .what { font-size: 1.3rem; font-weight: 700; min-width: 0; }
 .todo .what small { display: block; font-size: 0.9rem; font-weight: 400; color: var(--muted); }
@@ -178,8 +178,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .detail::before { content: ''; justify-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: -6px 0 2px; }
-  .scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 0.45); animation: fade 0.22s; }
-  body:has(.detail:not([hidden])) { overflow: hidden; }
+  .scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 0.45); animation: fade 0.22s; touch-action: none; }
 }
 @media (min-width: 960px) { .scrim { display: none; } }
 @media (prefers-reduced-motion: reduce) { .detail, .scrim { animation: none !important; } }
@@ -457,7 +456,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   }
   const scrim = document.getElementById('scrim');
   scrim.onclick = () => closeDetail();
-  function closeDetail() { sel = null; body.hidden = scrim.hidden = true; markSel(); }
+  const lock = on => { if (!matchMedia('(min-width: 960px)').matches) document.documentElement.style.overflow = document.body.style.overflow = on ? 'hidden' : ''; };  // 시트 열린 동안 뒤 화면 고정
+  function closeDetail() { sel = null; body.hidden = scrim.hidden = true; lock(false); markSel(); }
   const dartText = s => !s ? '대조 안 함 (지난 종목)' : s === 'ok' ? '청약일·납입일이 증권신고서와 일치' : s === 'no_key' ? '대조 안 함' : s === 'not_found' ? '증권신고서를 찾지 못함' : `확인 필요 (${esc(s)})`;
   // 상장일 시가·고가·저가·종가, 공모가 대비 %
   function ohlcBox(it) {
@@ -499,7 +499,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       </dl>
       <p class="src">출처: <a href="${esc(it.source)}" target="_blank" rel="noopener">38커뮤니케이션 상세</a></p>`;
     document.getElementById('dlg-close').onclick = closeDetail;
-    sel = idx; body.hidden = scrim.hidden = false; markSel();
+    sel = idx; body.hidden = scrim.hidden = false; lock(true); markSel();
     // 상장일이 다른 달이면 청약 달 그대로 두고 강조만. 패널은 맨 위로.
     body.scrollTop = 0;
   }
