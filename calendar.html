@@ -217,6 +217,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .agenda-day { grid-template-columns: 1fr; gap: 6px; }
   .agenda-day .date { padding-top: 0; }
 }
+.card .split, .card footer, .card .filter, .card .sub { display: none !important; }
+.card .wrap { padding-bottom: 20px; }
 @media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
 </style>
 
@@ -326,7 +328,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const byDate = {};
   events.forEach(e => (byDate[e.date] ||= []).push(e));
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // ?card=1 : 카톡 사진용. 오늘·내일 할 일만. ?day=YYYY-MM-DD 로 날짜 바꿔 보기
+  const qs = new URLSearchParams(location.search), card = qs.has('card');
+  const today = qs.get('day') ? parse(qs.get('day')) : new Date(); today.setHours(0, 0, 0, 0);
+  if (card) { document.body.classList.add('card'); document.getElementById('week-h').textContent = '오늘·내일 공모주'; }
   const todayIso = iso(today);
 
   if (data.generated_at) {
@@ -343,7 +348,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   };
 
   // 이번 주 할 일: 오늘부터 7일
-  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : 7));
   const soon = events.filter(e => e.date >= todayIso && e.date < iso(weekEnd));
   // 청약은 종목당 한 줄로 묶기
   const seen = new Set();
