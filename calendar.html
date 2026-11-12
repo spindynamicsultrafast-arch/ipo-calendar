@@ -218,7 +218,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .agenda-day .date { padding-top: 0; }
 }
 .card .split, .card footer, .card .filter, .card .sub { display: none !important; }
-.card .wrap { padding-bottom: 20px; }
+.card .wrap { padding-bottom: 20px; max-width: 420px; margin: 0; }  /* 사진 폭 고정 (헤드리스 크롬 창은 500px 미만이 안 됨) */
 @media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
 </style>
 
