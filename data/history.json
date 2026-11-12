@@ -22,7 +22,13 @@
   "status": "확정",
   "name": "넥스아이",
   "no": "2336",
-  "source": "http://www.38.co.kr/html/fund/?o=v&no=2336"
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2336",
+  "ohlc": {
+   "o": 7620,
+   "h": 7900,
+   "l": 4800,
+   "c": 4800
+  }
  },
  "2325": {
   "demand_start": "2026-10-22",
