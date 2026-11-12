@@ -368,10 +368,11 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   };
   weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
   if (card) {  // 사진용: 오늘·내일 두 칸, 비면 '일정 없음'
-    weekEl.innerHTML = [0, 1].map(n => {
+    weekEl.innerHTML = [0, 1].map(n => {  // 둘째 칸 = 다음 거래일 (주말 건너뜀, 공휴일은 모름)
       const d = new Date(today); d.setDate(d.getDate() + n);
+      while (n && d.getDay() % 6 === 0) d.setDate(d.getDate() + 1);
       const es = (byDate[iso(d)] || []).filter(e => !off.has(items[e.idx].grade || 'none'));
-      return `<h3 class="cday">${n ? '내일' : '오늘'} · ${md(iso(d))}</h3>` + (es.length ? es.map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
+      return `<h3 class="cday">${!n ? '오늘' : (d - today === 864e5 ? '내일' : '다음 거래일')} · ${md(iso(d))}</h3>` + (es.length ? es.map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
     }).join('');
   }
 
