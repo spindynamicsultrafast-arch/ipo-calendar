@@ -3,7 +3,7 @@
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
-  옵션: --to 방이름 (기본 손정우 = 나와의 채팅), --date 2026-11-16
+  옵션: --to 방이름[,방이름] (기본 손정우 = 나와의 채팅), --date 2026-11-16
 
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창에서 Enter(맨 위 내 프로필) 로
 나와의 채팅을 연다. 다른 방은 미리 열어 둬야 한다. 창·입력칸 포커스를 확인 못 하면 키를 안 누른다.
@@ -133,14 +133,16 @@ def main():
     print("사진:", png)
     if "--shot" in args:
         return
-    hwnd, edit = open_room(to)
-    if not focus(hwnd, edit):
-        sys.exit(f"'{to}' 입력칸에 커서를 못 놓음. 안 보냄")
-    clip_image(png)
-    key(0x11, 0x56)  # Ctrl+V: 사진 보내기 확인 창이 뜸
-    time.sleep(1.5)
-    key(0x0D)  # 확인 창에서 전송
-    print("전송함 (카톡에서 확인)")
+    for name in to.split(","):  # 예: --to 손정우,최미희
+        hwnd, edit = open_room(name)
+        if not focus(hwnd, edit):
+            sys.exit(f"'{name}' 입력칸에 커서를 못 놓음. 안 보냄")
+        clip_image(png)
+        key(0x11, 0x56)  # Ctrl+V: 사진 보내기 확인 창이 뜸
+        time.sleep(1.5)
+        key(0x0D)  # 확인 창에서 전송
+        time.sleep(1.5)
+        print(f"{name}: 전송함")
 
 
 if __name__ == "__main__":
