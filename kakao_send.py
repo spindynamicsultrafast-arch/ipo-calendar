@@ -2,7 +2,7 @@
 
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
-  python kakao_send.py                    # 사진 + 링크 전송
+  python kakao_send.py                    # 사진 전송
   옵션: --to 방이름 (기본 손정우 = 나와의 채팅), --date 2026-11-16
 
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창에서 Enter(맨 위 내 프로필) 로
@@ -78,10 +78,6 @@ def clip_image(path):
     clip_set(8, buf.getvalue()[14:])  # CF_DIB = BMP 파일 헤더 14바이트 뺀 것
 
 
-def clip_text(s):
-    clip_set(13, (s + "\0").encode("utf-16-le"))  # CF_UNICODETEXT (powershell 경유는 한글 깨짐)
-
-
 class GUI(ctypes.Structure):
     _fields_ = [("cbSize", W.DWORD), ("flags", W.DWORD), ("active", W.HWND), ("focus", W.HWND),
                 ("capture", W.HWND), ("menu", W.HWND), ("move", W.HWND), ("caret", W.HWND), ("rc", W.RECT)]
@@ -144,10 +140,6 @@ def main():
     key(0x11, 0x56)  # Ctrl+V: 사진 보내기 확인 창이 뜸
     time.sleep(1.5)
     key(0x0D)  # 확인 창에서 전송
-    time.sleep(1.5)
-    if focus(hwnd, edit):
-        clip_text(URL)
-        key(0x11, 0x56); key(0x0D)
     print("전송함 (카톡에서 확인)")
 
 
