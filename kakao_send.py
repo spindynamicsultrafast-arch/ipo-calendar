@@ -39,7 +39,10 @@ def has_events(day):
     items = json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
                        .group(1).replace("<\\/", "</"))["items"]
     d0 = dt.date.fromisoformat(day)
-    days = {d0.isoformat(), (d0 + dt.timedelta(days=1)).isoformat()}
+    d1 = d0 + dt.timedelta(days=1)
+    while d1.weekday() >= 5:  # 다음 거래일 (주말 건너뜀, 공휴일은 모름)
+        d1 += dt.timedelta(days=1)
+    days = {d0.isoformat(), d1.isoformat()}
     return any(it.get("grade") in SHOW and (
         {it.get("refund"), it.get("listing")} & days
         or any(it.get("sub_start") and it["sub_start"] <= x <= it["sub_end"] for x in days)) for it in items)
