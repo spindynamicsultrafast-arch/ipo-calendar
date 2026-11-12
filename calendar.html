@@ -142,6 +142,8 @@ button { font: inherit; color: inherit; }
 
 /* 달력 + 일정 나란히 (넓은 화면), 좁으면 위아래 */
 .split { display: grid; gap: 28px; }
+.fold { min-width: 0; }
+.fold > summary { display: none; }  /* 넓은 화면은 늘 펼침, 접기는 모바일만 */
 @media (min-width: 960px) {
   .split { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
   .split > .side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
@@ -185,6 +187,11 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .todo .what { font-size: 1.15rem; }
   .filter { gap: 5px; }
   .filter-label { display: none; }
+  .split { gap: 0; }
+  .fold { border-top: 1px solid var(--line); }
+  .fold > summary { display: list-item; font-size: 1.15rem; font-weight: 700; padding: 14px 0; cursor: pointer; }
+  .fold[open] > summary { padding-bottom: 8px; }
+  .fold #ag-h { display: none; }
   .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
   .day { min-height: 64px; }
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
@@ -225,6 +232,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   </section>
 
   <div class="split">
+  <details class="fold" open><summary>달력</summary>
   <section aria-labelledby="cal-h" style="display:grid;gap:12px;min-width:0">
     <div class="cal-head">
       <h2 id="cal-h"></h2>
@@ -240,13 +248,16 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       <span><i class="tag t-상장">상</i>상장 · 팔 수 있는 첫날</span>
     </div>
   </section>
+  </details>
 
   <div class="side">
   <aside class="detail dlg" id="detail" aria-live="polite" aria-labelledby="dlg-name" hidden></aside>
+  <details class="fold" open><summary>다가오는 일정</summary>
   <section class="agenda" aria-labelledby="ag-h">
     <h2 id="ag-h">다가오는 일정</h2>
     <div class="agenda" id="agenda"></div>
   </section>
+  </details>
   </div>
   </div>
 
@@ -262,6 +273,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 (() => {
   const data = JSON.parse(document.getElementById('ipo-data').textContent);
   const items = data.items;
+  if (matchMedia('(max-width: 640px)').matches) document.querySelectorAll('details.fold').forEach(d => { d.open = false; });  // 모바일: 이번 주 할 일만 펼침
   let off = new Set(['C', 'none']);  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함)
   let sel = null;       // 선택한 종목 idx (같은 이유로 위에 선언)
   try { off = new Set(JSON.parse(localStorage.getItem('ipo-off') || '["C","none"]')); } catch (_) {}
