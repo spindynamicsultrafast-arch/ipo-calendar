@@ -217,7 +217,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .agenda-day { grid-template-columns: 1fr; gap: 6px; }
   .agenda-day .date { padding-top: 0; }
 }
-.card .split, .card footer, .card .filter, .card .sub { display: none !important; }
+.cday { margin: 8px 0 0; font-size: 1.05rem; }
+.card .split, .card footer, .card #week-h, .card .filter, .card .sub { display: none !important; }
 .card .wrap { padding-bottom: 20px; max-width: 420px; margin: 0; }  /* 사진 폭 고정 (헤드리스 크롬 창은 500px 미만이 안 됨) */
 @media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
 </style>
@@ -354,7 +355,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const seen = new Set();
   const todo = soon.filter(e => { const k = e.type + e.idx; if (seen.has(k)) return false; seen.add(k); return true; });
   const weekEl = document.getElementById('week');
-  weekEl.innerHTML = todo.length ? todo.map(e => {
+  const todoHtml = e => {
     const it = items[e.idx];
     const when = e.type === '청약' && it.sub_end !== it.sub_start ? `${md(it.sub_start)}<small>~ ${md(it.sub_end)}</small>` : md(e.date);
     const note = e.type === '청약'
@@ -364,7 +365,15 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       <span class="when num">${when}</span>
       <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${uw(it) || '주관사 미정'} · ${minCash(it)}</small>` : ''}</span>
       ${gradeBadge(it.grade, false)}</button>`;
-  }).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
+  };
+  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
+  if (card) {  // 사진용: 오늘·내일 두 칸, 비면 '일정 없음'
+    weekEl.innerHTML = [0, 1].map(n => {
+      const d = new Date(today); d.setDate(d.getDate() + n);
+      const es = (byDate[iso(d)] || []).filter(e => !off.has(items[e.idx].grade || 'none'));
+      return `<h3 class="cday">${n ? '내일' : '오늘'} · ${md(iso(d))}</h3>` + (es.length ? es.map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
+    }).join('');
+  }
 
   // 월 달력
   const months = [...new Set(events.map(e => e.date.slice(0, 7)))].sort();
