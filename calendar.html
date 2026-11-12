@@ -163,28 +163,39 @@ button { font: inherit; color: inherit; }
 .steps span { display: flex; align-items: center; gap: 4px; }
 .steps b { font-weight: 600; }
 @media (max-width: 959px) {
+  /* 폰(S23+·플립7·폴드7 바깥 360~412px)과 폴드7 안쪽(~750px) 공통 */
+  html, body { font-size: 14px; }
+  .todo .what { font-size: 1.15rem; }
+}
+@media (max-width: 360px) { html, body { font-size: 13px; } }
+@media (max-width: 959px) {
   /* 좁은 화면: 아래쪽 시트, 화면 절반 이하만 차지해 달력이 보이게 */
-  .detail { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-height: 46dvh; overflow-y: auto;
+  .detail { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-height: 80dvh; max-width: 600px; margin-inline: auto; overflow-y: auto; overscroll-behavior: contain; animation: sheet-up 0.22s ease-out;
     border-radius: 16px 16px 0 0; border-width: 1.5px 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.2);
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .detail::before { content: ''; justify-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: -6px 0 2px; }
+  .scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 0.45); animation: fade 0.22s; }
+  body:has(.detail:not([hidden])) { overflow: hidden; }
 }
+@media (min-width: 960px) { .scrim { display: none; } }
+@media (prefers-reduced-motion: reduce) { .detail, .scrim { animation: none !important; } }
+@keyframes sheet-up { from { transform: translateY(100%); } }
+@keyframes fade { from { opacity: 0; } }
 .dlg-head { display: flex; align-items: center; gap: 12px; }
 .dlg-head h2 { flex: 1; font-size: 1.35rem; }
 .close { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; cursor: pointer; }
 .verdict { border-radius: 10px; padding: 10px 14px; font-weight: 600; }
 .verdict.g-none { font-size: 0.95rem; padding: 10px 14px; height: auto; display: block; }
-dl { margin: 0; display: grid; grid-template-columns: 8.5em 1fr; gap: 8px 12px; }
-dt { color: var(--muted); }
+dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 14px; }
+dt { color: var(--muted); white-space: nowrap; }
 dd { margin: 0; min-width: 0; }
 .src { font-size: 0.85rem; color: var(--muted); }
 .src a { color: var(--accent); }
 footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 
 @media (max-width: 640px) {
-  html, body { font-size: 14px; }  /* 갤럭시 S23+ 폭 384px 기준 */
   h1 { font-size: 1.4rem; }
-  .todo .what { font-size: 1.15rem; }
   .filter { gap: 5px; }
   .filter-label { display: none; }
   .split { gap: 0; }
@@ -203,7 +214,6 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .todo .when small { display: inline; margin-left: 4px; }
   .agenda-day { grid-template-columns: 1fr; gap: 6px; }
   .agenda-day .date { padding-top: 0; }
-  dl { grid-template-columns: 7em 1fr; }
 }
 @media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
 </style>
@@ -251,6 +261,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   </details>
 
   <div class="side">
+  <div class="scrim" id="scrim" hidden></div>
   <aside class="detail dlg" id="detail" aria-live="polite" aria-labelledby="dlg-name" hidden></aside>
   <details class="fold" open><summary>다가오는 일정</summary>
   <section class="agenda" aria-labelledby="ag-h">
@@ -441,7 +452,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     grid.classList.toggle('focus', sel != null);
     document.querySelectorAll('.chip, .row, .todo').forEach(el => el.classList.toggle('sel', sel != null && Number(el.dataset.idx) === sel));
   }
-  function closeDetail() { sel = null; body.hidden = true; markSel(); }
+  const scrim = document.getElementById('scrim');
+  scrim.onclick = () => closeDetail();
+  function closeDetail() { sel = null; body.hidden = scrim.hidden = true; markSel(); }
   const dartText = s => !s ? '대조 안 함 (지난 종목)' : s === 'ok' ? '청약일·납입일이 증권신고서와 일치' : s === 'no_key' ? '대조 안 함' : s === 'not_found' ? '증권신고서를 찾지 못함' : `확인 필요 (${esc(s)})`;
   // 상장일 시가·고가·저가·종가, 공모가 대비 %
   function ohlcBox(it) {
@@ -483,7 +496,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       </dl>
       <p class="src">출처: <a href="${esc(it.source)}" target="_blank" rel="noopener">38커뮤니케이션 상세</a></p>`;
     document.getElementById('dlg-close').onclick = closeDetail;
-    sel = idx; body.hidden = false; markSel();
+    sel = idx; body.hidden = scrim.hidden = false; markSel();
     // 상장일이 다른 달이면 청약 달 그대로 두고 강조만. 패널은 맨 위로.
     body.scrollTop = 0;
   }
