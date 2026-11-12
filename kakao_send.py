@@ -25,6 +25,7 @@ from ctypes import wintypes as W
 from PIL import Image, ImageChops
 
 URL = "https://spindynamicsultrafast-arch.github.io/ipo-calendar/"
+SELF = "손정우"  # 나와의 채팅 창 제목
 SHOW = {"A", "B"}  # 페이지 기본 필터와 같게: C·대기 제외
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
@@ -116,8 +117,15 @@ def open_room(name):
         main = u32.FindWindowW(None, "카카오톡")
         if not main or not focus(main):
             sys.exit("카카오톡 메인 창을 앞으로 못 띄움. 키 안 누름")
-        key(0x0D)  # 친구 목록 맨 위(내 프로필)에서 Enter = 나와의 채팅
+        if name != SELF:  # 다른 방: Ctrl+F 검색 → 첫 결과 Enter. 엉뚱한 방이 열려도 아래 제목 확인에서 멈춤
+            key(0x11, 0x46)
+            clip_set(13, (name + "\0").encode("utf-16-le"))
+            key(0x11, 0x56)  # Ctrl+A 는 카톡에서 친구 추가 단축키라 쓰면 안 됨
+            time.sleep(1)
+        key(0x0D)  # 나와의 채팅: 친구 목록 맨 위(내 프로필)에서 Enter
         time.sleep(1.5)
+        if name != SELF:
+            focus(main); key(0x1B)  # 검색칸 비우기
         hwnd = u32.FindWindowW(None, name)
     edit = hwnd and u32.FindWindowExW(hwnd, None, "RICHEDIT50W", None)
     if not edit:
