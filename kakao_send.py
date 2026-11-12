@@ -49,7 +49,7 @@ def shot(day):
     """헤드리스 크롬으로 ?card=1 화면을 찍고 배경 여백을 잘라 PNG 경로를 돌려준다."""
     out = os.path.join(tempfile.gettempdir(), f"ipo_{day}.png")
     subprocess.run([CHROME, "--headless=new", "--hide-scrollbars", "--force-device-scale-factor=2",
-                    "--window-size=600,1600", f"--screenshot={out}", f"{URL}?card=1&day={day}"],
+                    "--window-size=600,1600", f"--screenshot={out}", f"{URL}?card=1&day={day}&t={int(time.time())}"],
                    check=True, capture_output=True, timeout=60)
     img = Image.open(out).convert("RGB")
     bg = Image.new("RGB", img.size, img.getpixel((2, 2)))
