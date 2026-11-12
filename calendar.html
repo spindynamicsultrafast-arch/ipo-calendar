@@ -180,7 +180,12 @@ dd { margin: 0; min-width: 0; }
 footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 
 @media (max-width: 640px) {
-  h1 { font-size: 1.5rem; }
+  html, body { font-size: 14px; }  /* 갤럭시 S23+ 폭 384px 기준 */
+  h1 { font-size: 1.4rem; }
+  .todo .what { font-size: 1.15rem; }
+  .filter { gap: 5px; }
+  .filter-label { display: none; }
+  .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
   .day { min-height: 64px; }
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
   .chip.t-상장 { height: 8px; }
@@ -257,9 +262,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 (() => {
   const data = JSON.parse(document.getElementById('ipo-data').textContent);
   const items = data.items;
-  let off = new Set();  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함)
+  let off = new Set(['C', 'none']);  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함)
   let sel = null;       // 선택한 종목 idx (같은 이유로 위에 선언)
-  try { off = new Set(JSON.parse(localStorage.getItem('ipo-grade-off') || '[]')); } catch (_) {}
+  try { off = new Set(JSON.parse(localStorage.getItem('ipo-off') || '["C","none"]')); } catch (_) {}
   const DOW = ['일', '월', '화', '수', '목', '금', '토'];
   const MEANING = {
     A: '좋음 — 같은 조건의 과거 101종목은 손실이 없었어요.',
@@ -413,7 +418,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   }
   document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
     off.has(b.dataset.f) ? off.delete(b.dataset.f) : off.add(b.dataset.f);
-    try { localStorage.setItem('ipo-grade-off', JSON.stringify([...off])); } catch (_) {}
+    try { localStorage.setItem('ipo-off', JSON.stringify([...off])); } catch (_) {}
     drawMonth();
   });
   applyFilter();
