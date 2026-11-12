@@ -131,7 +131,9 @@ button { font: inherit; color: inherit; }
 /* 다가오는 일정 */
 .agenda { display: grid; gap: 14px; }
 .agenda-day { display: grid; grid-template-columns: 6.5em 1fr; gap: 12px; align-items: start; }
-.agenda-day .date { font-weight: 600; padding-top: 6px; }
+.agenda-day .date { font-weight: 600; padding-top: 6px; white-space: nowrap; }
+.todo .when, .steps b, .day .d { white-space: nowrap; }  /* 11/13(금) 이 두 줄로 안 갈리게 */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로이드 글자 자동 확대 끔 (폴드 안쪽) */
 .agenda-items { display: grid; gap: 6px; min-width: 0; }
 .row { display: flex; align-items: center; gap: 10px; text-align: left; background: var(--surface); border: 1px solid var(--line);
   border-radius: 10px; padding: 8px 12px; cursor: pointer; min-width: 0; }
@@ -167,6 +169,7 @@ button { font: inherit; color: inherit; }
   html, body { font-size: 14px; }
   .todo .what { font-size: 1.15rem; }
 }
+@media (min-width: 641px) and (max-width: 959px) { html, body { font-size: 13.5px; } }  /* 폴드7 안쪽 */
 @media (max-width: 360px) { html, body { font-size: 13px; } }
 @media (max-width: 959px) {
   /* 좁은 화면: 아래쪽 시트, 화면 절반 이하만 차지해 달력이 보이게 */
