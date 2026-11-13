@@ -168,6 +168,10 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
   /* 폰(S23+·플립7·폴드7 바깥 360~412px)과 폴드7 안쪽(~750px) 공통 */
   html, body { font-size: 14px; }
   .todo .what { font-size: 1.15rem; }
+  /* 부모님용 가독성: 제목은 그대로, 작은 회색 글씨만 바닥을 올림 (~13px 이상) */
+  .todo .what small, .sub, .legend, footer { font-size: 0.95rem; }
+  .todo .when small, .row .uw, .until { font-size: 0.9rem; }
+  .todo .what small { font-weight: 500; }
 }
 @media (min-width: 641px) and (max-width: 959px) { html, body { font-size: 13.5px; } }  /* 폴드7 안쪽 */
 @media (max-width: 360px) { html, body { font-size: 13px; } }
