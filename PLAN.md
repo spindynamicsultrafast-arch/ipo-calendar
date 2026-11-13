@@ -42,9 +42,10 @@ python collect.py            # 수집 + DART 대조 + 변경 감지
 `.env`에 `DART_API_KEY=...`를 넣어야 DART 대조가 돈다.
 
 ## 운영 루프 (2026-11-13)
-1. **21:00 KST, GitHub Actions** (`.github/workflows/update.yml`): `collect.py` 수집 → 등급 → `calendar.html` 커밋 → Pages 배포. 하루 한 번. 수요예측 결과가 낮에 나와 다음 날 바로 청약하는 경우(영업일 2일 차, 25종목 중 6)를 잡으려고 저녁에 돈다.
+1. **20:47 KST, GitHub Actions** (`.github/workflows/update.yml`): `collect.py` 수집 → 등급 → `calendar.html` 커밋 → Pages 배포. 하루 한 번. 수요예측 결과가 낮에 나와 다음 날 바로 청약하는 경우(영업일 2일 차, 25종목 중 6)를 잡으려고 저녁에 돈다.
 2. **07:30, 노트북 작업 스케줄러 `IPO-kakao`**: `kakao_send.py` 가 휴장일(주말·`CLOSED`)이거나 오늘 A/B 일정이 없으면 안 보냄. 있으면 `?card=1` (오늘 + 그다음 가장 빠른 일정) 캡처를 가족 단톡방에 보냄.
 3. **일요일 17:00, `IPO-kakao-week`**: `--week` = `?card=week` (다음 주 월~금 A/B + 평가 전 청약은 이름만) 캡처를 같은 단톡방에.
 
 조건: 노트북 켜짐·잠금 해제, 카톡 PC 로그인. 방은 채팅 탭 검색으로 열고 창 제목이 정확히 같을 때만 보냄 (`--to` 는 `;` 로 구분, 방 이름에 쉼표 있음).
-수동 관리: `CLOSED` 휴장일 목록 (임시공휴일·선거일·연말 휴장은 거래소 공지 보고 추가).
+휴장일: 일요일 `--week` 때 overnight-kis VM 의 KIS 개장일 캐시를 ssh 로 읽어 `open_days.json` 에 둠(읽기 전용). 그 범위 밖만 `CLOSED` 손 목록.
+실패(방 못 찾음·포커스 실패·예외)는 `kakao_send.log` 와 나와의 채팅에 한 줄 알림.
