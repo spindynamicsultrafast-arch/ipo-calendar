@@ -329,10 +329,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const byDate = {};
   events.forEach(e => (byDate[e.date] ||= []).push(e));
 
-  // ?card=1 : 카톡 사진용. 오늘·내일 할 일만. ?day=YYYY-MM-DD 로 날짜 바꿔 보기
+  // ?card=1 : 카톡 사진용. 오늘 + 다음 일정만. ?day=YYYY-MM-DD 로 날짜 바꿔 보기
   const qs = new URLSearchParams(location.search), card = qs.has('card');
   const today = qs.get('day') ? parse(qs.get('day')) : new Date(); today.setHours(0, 0, 0, 0);
-  if (card) { document.body.classList.add('card'); document.getElementById('week-h').textContent = '오늘·내일 공모주'; }
+  if (card) { document.body.classList.add('card'); document.getElementById('week-h').textContent = '오늘 공모주'; }
   const todayIso = iso(today);
 
   if (data.generated_at) {
@@ -367,13 +367,12 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       ${gradeBadge(it.grade, false)}</button>`;
   };
   weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
-  if (card) {  // 사진용: 오늘·내일 두 칸, 비면 '일정 없음'
-    weekEl.innerHTML = [0, 1].map(n => {  // 둘째 칸 = 다음 거래일 (주말 건너뜀, 공휴일은 모름)
-      const d = new Date(today); d.setDate(d.getDate() + n);
-      while (n && d.getDay() % 6 === 0) d.setDate(d.getDate() + 1);
-      const es = (byDate[iso(d)] || []).filter(e => !off.has(items[e.idx].grade || 'none'));
-      return `<h3 class="cday">${!n ? '오늘' : (d - today === 864e5 ? '내일' : '다음 거래일')} · ${md(iso(d))}</h3>` + (es.length ? es.map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
-    }).join('');
+  if (card) {  // 사진용: 오늘 + 그다음 가장 빠른 일정 (다음 거래일이 아니어도)
+    const show = k => (byDate[k] || []).filter(e => !off.has(items[e.idx].grade || 'none'));
+    const nx = Object.keys(byDate).sort().find(k => k > todayIso && show(k).length);
+    const sec = (title, k) => `<h3 class="cday">${title}${k ? ' · ' + md(k) : ''}</h3>` +
+      (k && show(k).length ? show(k).map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
+    weekEl.innerHTML = sec('오늘', todayIso) + sec(!nx ? '다음 일정' : parse(nx) - today === 864e5 ? '내일' : '다음 일정', nx);
   }
 
   // 월 달력
