@@ -1,7 +1,7 @@
 name: update
 on:
   schedule:
-    - cron: "0 12 * * *"   # 매일 21:00 KST 한 번: 낮에 나온 결과를 다음 날 07:30 카톡 전에 받아 둠 (밀려도 새벽엔 끝남)
+    - cron: "47 11 * * *"  # 매일 20:47 KST 한 번 (정각은 GitHub 이 몰려 몇 시간 밀림): 낮에 나온 결과를 다음 날 07:30 카톡 전에 받아 둠 (밀려도 새벽엔 끝남)
   workflow_dispatch:
 permissions:
   contents: write

@@ -42,7 +42,29 @@ k32.GlobalLock.argtypes = k32.GlobalUnlock.argtypes = [ctypes.c_void_p]
 u32.SetClipboardData.argtypes = [W.UINT, ctypes.c_void_p]
 
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+OPEN_DAYS = os.path.join(HERE, "open_days.json")  # KIS 휴장일조회 결과 사본 {"YYYYMMDD": 개장여부}
+ALERT_TO = "손정우"  # 실패 알림 받을 방 (나와의 채팅)
+
+
+def sync_open_days():
+    """overnight-kis VM 의 KIS 개장일 캐시(약 45~96일치)를 읽기 전용으로 받아 둔다. 일요일 --week 때 한 번."""
+    r = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "kis",
+                        "cat overnight-kis/app/data/open_days.json"], capture_output=True, timeout=60)
+    cal = json.loads(r.stdout.decode("utf-8"))  # 실패하면 여기서 던짐 → 실패 알림
+    with open(OPEN_DAYS, "w", encoding="utf-8") as f:
+        json.dump(cal, f)
+
+
 def is_open(d):
+    """KIS 달력이 그 날을 덮으면 그걸 믿고, 아니면 주말 + 손 목록(CLOSED)."""
+    try:
+        with open(OPEN_DAYS, encoding="utf-8") as f:
+            v = json.load(f).get(d.strftime("%Y%m%d"))
+        if v is not None:
+            return v
+    except (OSError, ValueError):
+        pass
     return d.weekday() < 5 and d.isoformat() not in CLOSED
 
 
@@ -157,6 +179,8 @@ def main():
     opt = lambda k, d: args[args.index(k) + 1] if k in args else d
     to, day = opt("--to", "손정우"), opt("--date", dt.date.today().isoformat())
     week = "--week" in args  # 일요일 다음 주 미리보기 (휴장일 검사 안 함)
+    if week and "--shot" not in args:
+        sync_open_days()  # 주 1회 휴장일 갱신
     if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
@@ -179,5 +203,32 @@ def main():
         print(f"{name}: 전송함")
 
 
+def log(msg):
+    with open(os.path.join(HERE, "kakao_send.log"), "a", encoding="utf-8") as f:
+        print(f"{dt.datetime.now():%Y-%m-%d %H:%M} {msg}", file=f)
+
+
+def alert(msg):
+    """실패를 나와의 채팅에 한 줄로. 화면이 잠겨 있으면 이것도 못 보냄 (로그에는 남음)."""
+    hwnd, edit = open_room(ALERT_TO)
+    if not focus(hwnd, edit):
+        return
+    clip_set(13, (msg + chr(0)).encode("utf-16-le"))
+    key(0x11, 0x56)
+    key(0x0D)
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException as e:  # sys.exit("이유") 와 예외 모두 실패. 정상 종료(return)는 여기 안 옴
+        if isinstance(e, SystemExit) and not isinstance(e.code, str):
+            raise
+        why = e.code if isinstance(e, SystemExit) else f"{type(e).__name__}: {e}"
+        log("실패 " + " ".join(sys.argv[1:]) + " | " + why)
+        if "--shot" not in sys.argv:
+            try:
+                alert(f"[공모주 알림 실패] {why}")
+            except BaseException as e2:  # noqa: BLE001 알림 실패는 로그만
+                log(f"알림도 실패 | {e2}")
+        raise
