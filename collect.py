@@ -22,9 +22,15 @@ DATE_KEYS = ("demand_start", "demand_end", "sub_start", "sub_end", "pay", "refun
 UA = {"User-Agent": "Mozilla/5.0"}
 
 
-def get(url, enc="cp949"):
+def get(url, enc="cp949", tries=3):
     req = urllib.request.Request(url, headers=UA)
-    return urllib.request.urlopen(req, timeout=20).read().decode(enc, "ignore")
+    for i in range(tries):  # 38커뮤니케이션이 가끔 응답 안 함 (2026-11-13 timeout)
+        try:
+            return urllib.request.urlopen(req, timeout=20).read().decode(enc, "ignore")
+        except OSError:
+            if i == tries - 1:
+                raise
+            time.sleep(5 * (i + 1))
 
 
 def flat(html):
