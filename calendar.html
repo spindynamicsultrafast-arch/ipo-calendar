@@ -329,7 +329,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const byDate = {};
   events.forEach(e => (byDate[e.date] ||= []).push(e));
 
-  // ?card=1 : 카톡 사진용. 오늘 + 다음 일정만. ?day=YYYY-MM-DD 로 날짜 바꿔 보기
+  // ?card=1 : 카톡 사진용. 오늘 + 다음 일정만. ?card=week : 다음 주. ?day=YYYY-MM-DD 로 날짜 바꿔 보기
   const qs = new URLSearchParams(location.search), card = qs.has('card');
   const today = qs.get('day') ? parse(qs.get('day')) : new Date(); today.setHours(0, 0, 0, 0);
   if (card) { document.body.classList.add('card'); document.getElementById('week-h').textContent = '오늘 공모주'; }
@@ -367,7 +367,15 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       ${gradeBadge(it.grade, false)}</button>`;
   };
   weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
-  if (card) {  // 사진용: 오늘 + 그다음 가장 빠른 일정 (다음 거래일이 아니어도)
+  if (qs.get('card') === 'week') {  // 일요일용: 다음 주 월~금 A/B 일정 + 평가 전 청약은 '청약 예정' 이름만
+    const mon = new Date(today); mon.setDate(mon.getDate() + 7 - (today.getDay() + 6) % 7);
+    const ks = [0, 1, 2, 3, 4].map(i => { const d = new Date(mon); d.setDate(d.getDate() + i); return iso(d); });
+    const ab = k => (byDate[k] || []).filter(e => ['A', 'B'].includes(items[e.idx].grade));
+    const wait = [...new Set(ks.flatMap(k => (byDate[k] || []).filter(e => e.type === '청약' && !items[e.idx].grade).map(e => e.idx)))];
+    weekEl.innerHTML = `<h3 class="cday">다음 주 · ${md(ks[0])} ~ ${md(ks[4])}</h3>` +
+      (ks.some(k => ab(k).length) ? ks.filter(k => ab(k).length).map(k => ab(k).map(todoHtml).join('')).join('') : '<div class="empty">A·B 일정 없음</div>') +
+      (wait.length ? `<h3 class="cday">청약 예정 · 평가 전</h3><div class="empty">${wait.map(i => `${esc(items[i].name)} · 청약 ${md(items[i].sub_start)}`).join('<br>')}</div>` : '');
+  } else if (card) {  // 사진용: 오늘 + 그다음 가장 빠른 일정 (다음 거래일이 아니어도)
     const show = k => (byDate[k] || []).filter(e => !off.has(items[e.idx].grade || 'none'));
     const nx = Object.keys(byDate).sort().find(k => k > todayIso && show(k).length);
     const sec = (title, k) => `<h3 class="cday">${title}${k ? ' · ' + md(k) : ''}</h3>` +

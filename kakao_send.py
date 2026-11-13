@@ -3,6 +3,7 @@
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
+  python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
   옵션: --to "방이름[;방이름]" (기본 손정우 = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
@@ -45,21 +46,26 @@ def is_open(d):
     return d.weekday() < 5 and d.isoformat() not in CLOSED
 
 
-def has_events(day):
-    """오늘 A/B 등급 일정이 있나 (없으면 안 보냄)."""
+def has_events(day, week=False):
+    """보낼 일정이 있나. 평소: 오늘 A/B. week: 다음 주 월~금 A/B 또는 평가 전 청약."""
     html = urllib.request.urlopen(URL, timeout=20).read().decode("utf-8")
     items = json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
                        .group(1).replace("<\\/", "</"))["items"]
-    return any(it.get("grade") in SHOW and (
-        day in (it.get("refund"), it.get("listing"))
-        or it.get("sub_start") and it["sub_start"] <= day <= it["sub_end"]) for it in items)
+    days = [day]
+    if week:
+        mon = dt.date.fromisoformat(day)
+        mon += dt.timedelta(days=7 - mon.weekday())
+        days = [(mon + dt.timedelta(days=i)).isoformat() for i in range(5)]
+    sub = lambda it, d: it.get("sub_start") and it["sub_start"] <= d <= it["sub_end"]
+    return any((it.get("grade") in SHOW and (d in (it.get("refund"), it.get("listing")) or sub(it, d)))
+               or (week and not it.get("grade") and sub(it, d)) for it in items for d in days)
 
 
-def shot(day):
+def shot(day, week=False):
     """헤드리스 크롬으로 ?card=1 화면을 찍고 배경 여백을 잘라 PNG 경로를 돌려준다."""
     out = os.path.join(tempfile.gettempdir(), f"ipo_{day}.png")
     subprocess.run([CHROME, "--headless=new", "--hide-scrollbars", "--force-device-scale-factor=2",
-                    "--window-size=600,1600", f"--screenshot={out}", f"{URL}?card=1&day={day}&t={int(time.time())}"],
+                    "--window-size=600,1600", f"--screenshot={out}", f"{URL}?card={'week' if week else 1}&day={day}&t={int(time.time())}"],
                    check=True, capture_output=True, timeout=60)
     img = Image.open(out).convert("RGB")
     bg = Image.new("RGB", img.size, img.getpixel((2, 2)))
@@ -150,13 +156,14 @@ def main():
     args = sys.argv[1:]
     opt = lambda k, d: args[args.index(k) + 1] if k in args else d
     to, day = opt("--to", "손정우"), opt("--date", dt.date.today().isoformat())
-    if not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
+    week = "--week" in args  # 일요일 다음 주 미리보기 (휴장일 검사 안 함)
+    if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
-    if not has_events(day):
-        print(f"{day}: 오늘 일정 없음, 안 보냄")
+    if not has_events(day, week):
+        print(f"{day}: 보낼 일정 없음, 안 보냄")
         return
-    png = shot(day)
+    png = shot(day, week)
     print("사진:", png)
     if "--shot" in args:
         return
