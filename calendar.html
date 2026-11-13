@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
 <style>
-/* 레이아웃: 위에 '이번 주 할 일' 큰 글씨 요약, 아래 월 달력 + 다가오는 일정 목록. 종목 누르면 상세 창. */
+/* 레이아웃: 위에 '이번 주 할 일' 큰 글씨 요약, 아래 월 달력 + 그 다음 일정 목록(이번 주 뒤부터). 종목 누르면 상세 창. */
 :root {
   --bg: #f5f7fa;
   --surface: #ffffff;
@@ -128,7 +128,7 @@ button { font: inherit; color: inherit; }
 .chip.joinL { margin-left: -5px; border-top-left-radius: 0; border-bottom-left-radius: 0; color: transparent; }
 .until { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
 
-/* 다가오는 일정 */
+/* 그 다음 일정 */
 .agenda { display: grid; gap: 14px; }
 .agenda-day { display: grid; grid-template-columns: 6.5em 1fr; gap: 12px; align-items: start; }
 .agenda-day .date { font-weight: 600; padding-top: 6px; white-space: nowrap; }
@@ -268,9 +268,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   <div class="side">
   <div class="scrim" id="scrim" hidden></div>
   <aside class="detail dlg" id="detail" aria-live="polite" aria-labelledby="dlg-name" hidden></aside>
-  <details class="fold" open><summary>다가오는 일정</summary>
+  <details class="fold" open><summary>그 다음 일정</summary>
   <section class="agenda" aria-labelledby="ag-h">
-    <h2 id="ag-h">다가오는 일정</h2>
+    <h2 id="ag-h">그 다음 일정</h2>
     <div class="agenda" id="agenda"></div>
   </section>
   </details>
@@ -427,10 +427,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
   drawMonth();
 
-  // 다가오는 일정
-  // 청약은 종목당 한 줄(남은 첫날에) + 끝나는 날짜
-  const subSeen = new Set(), agByDate = {};
-  events.filter(e => e.date >= todayIso).forEach(e => {
+  // 그 다음 일정: '이번 주 할 일'(7일) 뒤부터. 겹치지 않게
+  // 청약은 종목당 한 줄(남은 첫날에) + 끝나는 날짜. 이번 주에 이미 나온 청약은 뺌
+  const subSeen = new Set(todo.filter(e => e.type === '청약').map(e => e.idx)), agByDate = {};
+  events.filter(e => e.date >= iso(weekEnd)).forEach(e => {
     if (e.type === '청약') { if (subSeen.has(e.idx)) return; subSeen.add(e.idx); }
     (agByDate[e.date] ||= []).push(e);
   });
@@ -446,7 +446,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     <div class="agenda-day"><div class="date num">${md(k)}</div><div class="agenda-items">
       ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}" data-g="${items[e.idx].grade || 'none'}"><i class="tag t-${e.type}">${e.type}</i>
         <span class="nm">${esc(items[e.idx].name)}${until(e)}${items[e.idx].underwriter ? `<small class="uw">${esc(uwShort(items[e.idx].underwriter))}</small>` : ''}</span>${gradeBadge(items[e.idx].grade, false)}</button>`).join('')}
-    </div></div>`).join('') : '<div class="empty">앞으로 잡힌 일정이 없어요.</div>';
+    </div></div>`).join('') : '<div class="empty">다음 주 이후로 잡힌 일정이 없어요.</div>';
 
   // 등급 필터: 꺼진 등급의 일정을 숨기고, 비게 된 날짜·목록은 안내문으로
   function applyFilter() {
