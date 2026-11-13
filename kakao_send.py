@@ -3,7 +3,7 @@
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
-  옵션: --to 방이름[,방이름] (기본 손정우 = 나와의 채팅), --date 2026-11-16
+  옵션: --to "방이름[;방이름]" (기본 손정우 = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창 채팅 탭에서
@@ -160,7 +160,7 @@ def main():
     print("사진:", png)
     if "--shot" in args:
         return
-    for name in to.split(","):  # 예: --to 손정우,최미희
+    for name in to.split(";"):  # 예: --to "손정우;최미희;어머니, 최미희, 아버지, 대초가"
         hwnd, edit = open_room(name)
         if not focus(hwnd, edit):
             sys.exit(f"'{name}' 입력칸에 커서를 못 놓음. 안 보냄")
