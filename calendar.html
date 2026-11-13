@@ -236,14 +236,14 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       <button type="button" class="fbtn" data-f="A" aria-pressed="true"><i class="grade g-A">A</i>좋음</button>
       <button type="button" class="fbtn" data-f="B" aria-pressed="true"><i class="grade g-B">B</i>보통</button>
       <button type="button" class="fbtn" data-f="C" aria-pressed="true"><i class="grade g-C">C</i>주의</button>
-      <button type="button" class="fbtn" data-f="none" aria-pressed="true"><i class="grade g-none">대기</i>등급 전</button>
+      <button type="button" class="fbtn" data-f="none" aria-pressed="true"><i class="grade g-none">대기</i>평가 전</button>
     </div>
   </header>
 
   <section class="week" aria-labelledby="week-h">
     <h2 id="week-h">이번 주 할 일</h2>
     <div class="week-list" id="week"></div>
-    <div class="legend" aria-label="등급 뜻" title="과거 265종목(2023-05~2026-11) 상장 첫날 시초가 기준. 수익은 중앙값">
+    <div class="legend" aria-label="등급 뜻">
       <span><i class="grade g-A">A</i>좋음 · 승률 100% · 수익 +116%</span>
       <span><i class="grade g-B">B</i>보통 · 승률 90% · 수익 +55%</span>
       <span><i class="grade g-C">C</i>주의 · 승률 60% · 수익 +4%</span>
@@ -282,8 +282,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   </div>
 
   <footer>
-    <span>등급은 기관 경쟁률·공모가 확정 위치·의무보유확약으로 매깁니다. 2023년 5월 이후 상장한 265종목에서 A는 손실 0건(시초가 중앙값 +116%), B는 10%, C는 40%가 손실이었습니다.</span>
-    <span>일정은 38커뮤니케이션에서 모으고, 청약일·납입일은 금융감독원 DART 증권신고서와 대조합니다. 투자 판단은 본인 몫입니다.</span>
+    <span>등급: 기관 경쟁률·공모가 위치·확약 비율로 매김. 승률·수익은 2023년 5월 이후 265종목, 상장 첫날 시초가 기준(수익은 중간값).</span>
+    <span>일정 출처: 38커뮤니케이션 · DART 대조. 투자 판단은 본인 몫입니다.</span>
   </footer>
 </div>
 
@@ -342,7 +342,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   if (data.generated_at) {
     const g = new Date(data.generated_at);
     document.getElementById('asof').textContent =
-      `${g.getMonth() + 1}월 ${g.getDate()}일 ${pad(g.getHours())}:${pad(g.getMinutes())} 기준 · 스팩 제외 ${items.length}종목`;
+      `${g.getMonth() + 1}/${g.getDate()} ${pad(g.getHours())}:${pad(g.getMinutes())} 업데이트`;
   }
 
   // 최소 청약 증거금 = 공모가(미정이면 희망 상단) × 최소 주수 × 증거금률
@@ -362,15 +362,14 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const todoHtml = e => {
     const it = items[e.idx];
     const when = e.type === '청약' && it.sub_end !== it.sub_start ? `${md(it.sub_start)}<small>~ ${md(it.sub_end)}</small>` : md(e.date);
-    const note = e.type === '청약'
-      ? (it.price ? `공모가 ${won(it.price)} 확정` : `공모가 미정 (${won(it.band_low)}~${won(it.band_high)})`)
-      : [it.underwriter && uw(it), e.type === '상장' && `공모가 ${won(it.price)}`].filter(Boolean).join(' · ');
+    const price = it.price ? `공모가 ${won(it.price)}` : `공모가 미정 ${won(it.band_low)}~${won(it.band_high)}`;
+    const note = [it.underwriter && uw(it), e.type !== '환불' && price].filter(Boolean).join(' · ');
     return `<button type="button" class="todo" data-idx="${e.idx}" data-g="${it.grade || 'none'}">
       <span class="when num">${when}</span>
-      <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${uw(it) || '주관사 미정'} · ${minCash(it)}</small>` : ''}</span>
+      <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${minCash(it)}</small>` : ''}</span>
       ${gradeBadge(it.grade, false)}</button>`;
   };
-  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주에는 청약·환불·상장 일정이 없어요.</div>';
+  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주 일정 없음</div>';
   if (qs.get('card') === 'week') {  // 일요일용: 다음 주 월~금 A/B 일정 + 평가 전 청약은 '청약 예정' 이름만
     const mon = new Date(today); mon.setDate(mon.getDate() + 7 - (today.getDay() + 6) % 7);
     const ks = [0, 1, 2, 3, 4].map(i => { const d = new Date(mon); d.setDate(d.getDate() + i); return iso(d); });
@@ -450,7 +449,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     <div class="agenda-day"><div class="date num">${md(k)}</div><div class="agenda-items">
       ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}" data-g="${items[e.idx].grade || 'none'}"><i class="tag t-${e.type}">${e.type}</i>
         <span class="nm">${esc(items[e.idx].name)}${until(e)}${items[e.idx].underwriter ? `<small class="uw">${esc(uwShort(items[e.idx].underwriter))}</small>` : ''}</span>${gradeBadge(items[e.idx].grade, false)}</button>`).join('')}
-    </div></div>`).join('') : '<div class="empty">다음 주 이후로 잡힌 일정이 없어요.</div>';
+    </div></div>`).join('') : '<div class="empty">예정된 일정 없음</div>';
 
   // 등급 필터: 꺼진 등급의 일정을 숨기고, 비게 된 날짜·목록은 안내문으로
   function applyFilter() {
@@ -464,8 +463,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       if (none && !m) box.insertAdjacentHTML('beforeend', `<div class="empty filtered">${text}</div>`);
       if (!none && m) m.remove();
     };
-    msg('week', '.todo', '선택한 등급의 일정이 이번 주에는 없어요.');
-    msg('agenda', '.agenda-day', '선택한 등급의 일정이 없어요.');
+    msg('week', '.todo', '이번 주 일정 없음');
+    msg('agenda', '.agenda-day', '예정된 일정 없음');
   }
   document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
     off.has(b.dataset.f) ? off.delete(b.dataset.f) : off.add(b.dataset.f);
@@ -484,7 +483,6 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   scrim.onclick = () => closeDetail();
   const lock = on => { if (!matchMedia('(min-width: 960px)').matches) document.documentElement.style.overflow = document.body.style.overflow = on ? 'hidden' : ''; };  // 시트 열린 동안 뒤 화면 고정
   function closeDetail() { sel = null; body.hidden = scrim.hidden = true; lock(false); markSel(); }
-  const dartText = s => !s ? '대조 안 함 (지난 종목)' : s === 'ok' ? '청약일·납입일이 증권신고서와 일치' : s === 'no_key' ? '대조 안 함' : s === 'not_found' ? '증권신고서를 찾지 못함' : `확인 필요 (${esc(s)})`;
   // 상장일 시가·고가·저가·종가, 공모가 대비 %
   function ohlcBox(it) {
     if (!it.ohlc) return it.listing && it.listing < todayIso ? '<p class="src">상장일 시세를 못 받았어요.</p>' : '';
@@ -500,9 +498,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   function open(idx) {
     const it = items[idx];
     const range = (a, b) => a ? (a === b ? md(a) : `${md(a)} ~ ${md(b)}`) : '-';
-    const priceLine = it.price
-      ? `${won(it.price)} <span class="sub" style="display:inline">(희망 ${won(it.band_low)}~${won(it.band_high)})</span>`
-      : `미정 · 희망 ${won(it.band_low)}~${won(it.band_high)}`;
+    const priceLine = it.price ? won(it.price) : `미정 (희망 ${won(it.band_low)}~${won(it.band_high)})`;
     body.innerHTML = `
       <div class="dlg-head">${gradeBadge(it.grade, false)}<h2 id="dlg-name">${esc(it.name)}</h2>
         <button type="button" class="close" id="dlg-close">닫기</button></div>
@@ -513,17 +509,15 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
         <span><i class="tag t-상장">상장</i><b class="num">${it.listing ? md(it.listing) : '미정'}</b></span>
       </div>
       ${ohlcBox(it)}
-      <dl>
-        <dt>공모가</dt><dd class="num">${priceLine}</dd>
-        <dt>기관 경쟁률</dt><dd class="num">${it.inst_ratio == null ? '-' : it.inst_ratio.toLocaleString('ko-KR') + ' : 1'}</dd>
-        <dt>의무보유확약</dt><dd class="num">${it.lockup_pct == null ? '-' : it.lockup_pct + '%'}</dd>
-        <dt>일반 청약 경쟁률</dt><dd class="num">${it.retail_ratio == null ? '-' : it.retail_ratio.toLocaleString('ko-KR') + ' : 1'}</dd>
-        <dt>주간사</dt><dd>${uw(it) || '-'}</dd>
-        <dt>최소 청약금</dt><dd class="num">${minCash(it).replace('최소 ', '')}</dd>
-        <dt>업종</dt><dd>${esc(it.sector || '-')}</dd>
-        <dt>DART 대조</dt><dd>${dartText(it.dart)}</dd>
-      </dl>
-      <p class="src">출처: <a href="${esc(it.source)}" target="_blank" rel="noopener">38커뮤니케이션 상세</a></p>`;
+      <dl>${[
+        ['주관사', uw(it)],
+        ['최소 청약금', minCash(it).replace('최소 ', '')],
+        ['공모가', priceLine],
+        ['기관 경쟁률', it.inst_ratio != null && it.inst_ratio.toLocaleString('ko-KR') + ' : 1'],
+        ['의무보유확약', it.lockup_pct != null && it.lockup_pct + '%'],
+        ['일반 청약 경쟁률', it.retail_ratio != null && it.retail_ratio.toLocaleString('ko-KR') + ' : 1'],
+      ].filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd class="num">${v}</dd>`).join('')}</dl>
+      <p class="src"><a href="${esc(it.source)}" target="_blank" rel="noopener">원문 보기 (38커뮤니케이션)</a></p>`;
     document.getElementById('dlg-close').onclick = closeDetail;
     sel = idx; body.hidden = scrim.hidden = false; lock(true); markSel();
     // 상장일이 다른 달이면 청약 달 그대로 두고 강조만. 패널은 맨 위로.
