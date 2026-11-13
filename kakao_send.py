@@ -6,8 +6,8 @@
   옵션: --to 방이름[,방이름] (기본 손정우 = 나와의 채팅), --date 2026-11-16
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
-조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창에서 Enter(맨 위 내 프로필) 로
-나와의 채팅을 연다. 다른 방은 미리 열어 둬야 한다. 창·입력칸 포커스를 확인 못 하면 키를 안 누른다.
+조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창 채팅 탭에서
+이름 검색해 연다. 창·입력칸 포커스를 확인 못 하면 키를 안 누른다.
 카톡은 WM_SETTEXT 로 넣은 글은 Enter 로 안 보낸다. 진짜 Ctrl+V·Enter 만 먹는다 (2026-11-12 확인).
 """
 import ctypes
@@ -26,7 +26,6 @@ from ctypes import wintypes as W
 from PIL import Image, ImageChops
 
 URL = "https://spindynamicsultrafast-arch.github.io/ipo-calendar/"
-SELF = "손정우"  # 나와의 채팅 창 제목
 SHOW = {"A", "B"}  # 페이지 기본 필터와 같게: C·대기 제외
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 # 주말 말고 증시 휴장일. 2027 은 우주항공청 월력요항(2026-06-29) 기준 + 연말 휴장(12/31) 추정.
@@ -124,15 +123,22 @@ def open_room(name):
         main = u32.FindWindowW(None, "카카오톡")
         if not main or not focus(main):
             sys.exit("카카오톡 메인 창을 앞으로 못 띄움. 키 안 누름")
-        if name != SELF:  # 다른 방: Ctrl+F 검색 → 첫 결과 Enter. 엉뚱한 방이 열려도 아래 제목 확인에서 멈춤
-            key(0x11, 0x46)
-            clip_set(13, (name + "\0").encode("utf-16-le"))
-            key(0x11, 0x56)  # Ctrl+A 는 카톡에서 친구 추가 단축키라 쓰면 안 됨
-            time.sleep(1)
-        key(0x0D)  # 나와의 채팅: 친구 목록 맨 위(내 프로필)에서 Enter
+        # 채팅 탭 클릭 → Ctrl+F 방 이름 검색 → 첫 결과 Enter. 엉뚱한 방이 열려도 아래 제목 확인에서 멈춤
+        # (친구 탭 검색엔 나와의 채팅이 안 나오고, Ctrl+2 는 탭 전환 안 됨. 2026-11-13 확인)
+        # ponytail: 채팅 탭 아이콘 위치 고정값(창 왼쪽 위 기준, DPI 비인식 좌표). 카톡 화면 바뀌면 다시 잼
+        r = W.RECT()
+        u32.GetWindowRect(main, ctypes.byref(r))
+        u32.SetCursorPos(r.left + 31, r.top + 116)
+        u32.mouse_event(2, 0, 0, 0, 0); u32.mouse_event(4, 0, 0, 0, 0)
+        time.sleep(1)
+        key(0x11, 0x46)
+        key(0x24); key(0x10, 0x23)  # Home, Shift+End: 남은 검색어 선택 (Ctrl+A 는 카톡에서 친구 추가라 안 씀)
+        clip_set(13, (name + "\0").encode("utf-16-le"))
+        key(0x11, 0x56)
+        time.sleep(1.2)
+        key(0x0D)
         time.sleep(1.5)
-        if name != SELF:
-            focus(main); key(0x1B)  # 검색칸 비우기
+        focus(main); key(0x1B)  # 검색어 지우기 (빈 검색칸에서 Esc 는 메인 창을 숨김)
         hwnd = u32.FindWindowW(None, name)
     edit = hwnd and u32.FindWindowExW(hwnd, None, "RICHEDIT50W", None)
     if not edit:
