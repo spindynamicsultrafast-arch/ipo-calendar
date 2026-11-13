@@ -1,10 +1,11 @@
-"""오늘·내일 공모주 일정을 사진으로 찍어 카톡 PC 앱 채팅방에 보낸다.
+"""오늘 공모주 일정(+다음 일정)을 사진으로 찍어 카톡 PC 앱 채팅방에 보낸다.
 
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
   옵션: --to 방이름[,방이름] (기본 손정우 = 나와의 채팅), --date 2026-11-16
 
+휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창에서 Enter(맨 위 내 프로필) 로
 나와의 채팅을 연다. 다른 방은 미리 열어 둬야 한다. 창·입력칸 포커스를 확인 못 하면 키를 안 누른다.
 카톡은 WM_SETTEXT 로 넣은 글은 Enter 로 안 보낸다. 진짜 Ctrl+V·Enter 만 먹는다 (2026-11-12 확인).
@@ -28,25 +29,31 @@ URL = "https://spindynamicsultrafast-arch.github.io/ipo-calendar/"
 SELF = "손정우"  # 나와의 채팅 창 제목
 SHOW = {"A", "B"}  # 페이지 기본 필터와 같게: C·대기 제외
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+# 주말 말고 증시 휴장일. 2027 은 우주항공청 월력요항(2026-06-29) 기준 + 연말 휴장(12/31) 추정.
+# ponytail: 손으로 관리. 선거일·임시공휴일 등 기타 휴장은 거래소 공지 나면 여기 추가. 2028 은 2027 하반기에 추가
+CLOSED = set("""
+2026-12-25 2026-12-31
+2027-01-01 2027-02-08 2027-02-09 2027-03-01 2027-05-03 2027-05-05 2027-05-13 2027-07-19
+2027-08-16 2027-09-14 2027-09-15 2027-09-16 2027-10-04 2027-10-11 2027-12-27 2027-12-31
+""".split())
 u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
 k32.GlobalAlloc.restype = k32.GlobalLock.restype = ctypes.c_void_p
 k32.GlobalLock.argtypes = k32.GlobalUnlock.argtypes = [ctypes.c_void_p]
 u32.SetClipboardData.argtypes = [W.UINT, ctypes.c_void_p]
 
 
+def is_open(d):
+    return d.weekday() < 5 and d.isoformat() not in CLOSED
+
+
 def has_events(day):
-    """오늘·내일 A/B 등급 일정이 있나 (없으면 안 보냄)."""
+    """오늘 A/B 등급 일정이 있나 (없으면 안 보냄)."""
     html = urllib.request.urlopen(URL, timeout=20).read().decode("utf-8")
     items = json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
                        .group(1).replace("<\\/", "</"))["items"]
-    d0 = dt.date.fromisoformat(day)
-    d1 = d0 + dt.timedelta(days=1)
-    while d1.weekday() >= 5:  # 다음 거래일 (주말 건너뜀, 공휴일은 모름)
-        d1 += dt.timedelta(days=1)
-    days = {d0.isoformat(), d1.isoformat()}
     return any(it.get("grade") in SHOW and (
-        {it.get("refund"), it.get("listing")} & days
-        or any(it.get("sub_start") and it["sub_start"] <= x <= it["sub_end"] for x in days)) for it in items)
+        day in (it.get("refund"), it.get("listing"))
+        or it.get("sub_start") and it["sub_start"] <= day <= it["sub_end"]) for it in items)
 
 
 def shot(day):
@@ -137,8 +144,11 @@ def main():
     args = sys.argv[1:]
     opt = lambda k, d: args[args.index(k) + 1] if k in args else d
     to, day = opt("--to", "손정우"), opt("--date", dt.date.today().isoformat())
+    if not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
+        print(f"{day}: 휴장일, 안 보냄")
+        return
     if not has_events(day):
-        print(f"{day}: 오늘·내일 보낼 일정 없음")
+        print(f"{day}: 오늘 일정 없음, 안 보냄")
         return
     png = shot(day)
     print("사진:", png)
