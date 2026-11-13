@@ -2,6 +2,7 @@ name: update
 on:
   schedule:
     - cron: "0 22 * * *"   # 매일 07:00 KST
+    - cron: "0 12 * * *"   # 매일 21:00 KST: 낮에 나온 수요예측 결과를 다음 날 07:30 카톡 전에 받아 둠
   workflow_dispatch:
 permissions:
   contents: write
