@@ -246,14 +246,21 @@ def main():
     keep_from = (today - dt.timedelta(days=14)).isoformat()
 
     recs = {}
-    for no, name in list_rows(get(f"{BASE}/html/fund/index.htm?o=k")):
+    rows = list_rows(get(f"{BASE}/html/fund/index.htm?o=k"))
+    parsed = 0
+    for no, name in rows:
         rec = parse_detail(get(f"{BASE}/html/fund/?o=v&no={no}"))
         time.sleep(0.5)  # 사이트 부담 줄이기
+        parsed += bool(rec["sub_end"])
         if not rec["sub_end"] or rec["sub_end"] < keep_from:
             continue
         rec.update(name=name, no=no, source=f"{BASE}/html/fund/?o=v&no={no}",
                    fetched_at=dt.datetime.now().isoformat(timespec="seconds"))
         recs[no] = rec
+    # 38 구조가 바뀌면 빈 결과로 덮고 초록불로 끝남 → 저장 전에 실패로 멈춰 기존 데이터 보존 + Actions 실패 메일
+    # 목록엔 지난 종목도 늘 남아 있어서 정상일 때 0건은 사실상 없음
+    if not rows or not parsed:
+        sys.exit(f"38 파싱 실패: 목록 {len(rows)}행, 청약일 읽힌 상세 {parsed}건 (사이트 구조 변경 의심)")
 
     if os.environ.get("DART_API_KEY"):
         try:
