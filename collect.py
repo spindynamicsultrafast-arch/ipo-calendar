@@ -204,11 +204,13 @@ def dart_check(rec, filers):
     sbd, pymd = dates_in(latest.get("sbd")), dates_in(latest.get("pymd"))
     # 다르면 DART(증권신고서 최신 정정본)가 정답 → 덮어쓰고 38 원래 값은 결과 문자열에 남김
     bad = []
-    if sbd and (sbd[0], sbd[-1]) != (rec["sub_start"], rec["sub_end"]):
+    if len(sbd) >= 2 and (sbd[0], sbd[-1]) != (rec["sub_start"], rec["sub_end"]):  # 날짜 하나만 읽히면 기간을 하루로 망가뜨림
         bad.append(f"청약 38={rec['sub_start']}~{rec['sub_end']}")
         rec["sub_start"], rec["sub_end"] = sbd[0], sbd[-1]
     if pymd and pymd[0] != rec["pay"]:
         bad.append(f"납입 38={rec['pay']}")
+        if rec["refund"] == rec["pay"]:  # 환불일은 보통 납입일과 같은 날. 38 값끼리 같았으면 같이 옮김
+            rec["refund"] = pymd[0]
         rec["pay"] = pymd[0]
     return "dart_fixed:" + "; ".join(bad) if bad else "ok"
 

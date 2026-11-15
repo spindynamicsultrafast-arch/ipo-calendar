@@ -37,3 +37,12 @@ assert collect.dart_check(x, {"A": "c"}) == "dart_fixed:청약 38=2026-11-19~202
 assert (x["sub_start"], x["sub_end"], x["pay"]) == ("2026-11-20", "2026-11-21", "2026-11-25"), x
 assert collect.dart_check(x, {"A": "c"}) == "ok"
 print("dart ok")
+
+y = {"name": "A", "sub_start": "2026-11-20", "sub_end": "2026-11-21", "pay": "2026-11-24", "refund": "2026-11-24"}
+assert collect.dart_check(y, {"A": "c"}) == "dart_fixed:납입 38=2026-11-24", y
+assert (y["pay"], y["refund"]) == ("2026-11-25", "2026-11-25"), y  # 환불일도 같이
+collect.dart = lambda *a, **k: {"status": "000", "group": [{"title": "일반사항", "list": [
+    {"rcept_no": "1", "sbd": "2026년 11월 20일", "pymd": "2026년 11월 25일"}]}]}
+z = {"name": "A", "sub_start": "2026-11-20", "sub_end": "2026-11-21", "pay": "2026-11-25", "refund": "2026-11-25"}
+assert collect.dart_check(z, {"A": "c"}) == "ok" and z["sub_end"] == "2026-11-21", z  # 날짜 하나면 안 건드림
+print("dart edge ok")

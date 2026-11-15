@@ -182,7 +182,10 @@ def main():
     to, day = opt("--to", ALERT_TO), opt("--date", dt.date.today().isoformat())
     week = "--week" in args  # 일요일 다음 주 미리보기 (휴장일 검사 안 함)
     if week and "--shot" not in args:
-        sync_open_days()  # 주 1회 휴장일 갱신
+        try:
+            sync_open_days()  # 주 1회 휴장일 갱신
+        except Exception as e:  # noqa: BLE001 VM 장애로 주간 브리핑까지 막지 않음 (주간은 휴장일 검사 안 함, 지난 캐시·CLOSED 로 버팀)
+            log(f"휴장일 동기화 실패, 계속 보냄 | {e!r}")
     if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
