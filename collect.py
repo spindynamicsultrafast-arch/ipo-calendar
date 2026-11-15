@@ -188,7 +188,7 @@ def dates_in(s):
 
 
 def dart_check(rec, filers):
-    """증권신고서의 청약기일·납입기일과 38 값 비교. 결과: ok / mismatch:... / not_found / error:..."""
+    """증권신고서의 청약기일·납입기일과 38 값 비교. 다르면 DART 값으로 덮어씀. 결과: ok / dart_fixed:(38 원래 값) / not_found / error:..."""
     code = filers.get(norm(rec["name"]))
     if not code:
         return "not_found"
@@ -202,12 +202,15 @@ def dart_check(rec, filers):
         return "error:일반사항 없음"
     latest = max(general, key=lambda x: x["rcept_no"])  # 가장 최근 정정본
     sbd, pymd = dates_in(latest.get("sbd")), dates_in(latest.get("pymd"))
+    # 다르면 DART(증권신고서 최신 정정본)가 정답 → 덮어쓰고 38 원래 값은 결과 문자열에 남김
     bad = []
     if sbd and (sbd[0], sbd[-1]) != (rec["sub_start"], rec["sub_end"]):
-        bad.append(f"청약 DART={sbd[0]}~{sbd[-1]}")
+        bad.append(f"청약 38={rec['sub_start']}~{rec['sub_end']}")
+        rec["sub_start"], rec["sub_end"] = sbd[0], sbd[-1]
     if pymd and pymd[0] != rec["pay"]:
-        bad.append(f"납입 DART={pymd[0]}")
-    return "mismatch:" + "; ".join(bad) if bad else "ok"
+        bad.append(f"납입 38={rec['pay']}")
+        rec["pay"] = pymd[0]
+    return "dart_fixed:" + "; ".join(bad) if bad else "ok"
 
 
 # ---------- 실행 ----------
