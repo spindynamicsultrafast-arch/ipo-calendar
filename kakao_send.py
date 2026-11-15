@@ -4,7 +4,7 @@
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
   python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
-  옵션: --to "방이름[;방이름]" (기본 나 = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
+  옵션: --to "방이름[;방이름]" (기본 .env 의 KAKAO_SELF = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창 채팅 탭에서
@@ -44,7 +44,9 @@ u32.SetClipboardData.argtypes = [W.UINT, ctypes.c_void_p]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OPEN_DAYS = os.path.join(HERE, "open_days.json")  # KIS 휴장일조회 결과 사본 {"YYYYMMDD": 개장여부}
-ALERT_TO = "나"  # 실패 알림 받을 방 (나와의 채팅)
+from collect import load_env  # noqa: E402  .env 읽기 (방 이름은 public 저장소에 안 올림)
+load_env()
+ALERT_TO = os.environ.get("KAKAO_SELF", "")  # 실패 알림 받을 방 (나와의 채팅)
 
 
 def sync_open_days():
@@ -177,7 +179,7 @@ def open_room(name):
 def main():
     args = sys.argv[1:]
     opt = lambda k, d: args[args.index(k) + 1] if k in args else d
-    to, day = opt("--to", "나"), opt("--date", dt.date.today().isoformat())
+    to, day = opt("--to", ALERT_TO), opt("--date", dt.date.today().isoformat())
     week = "--week" in args  # 일요일 다음 주 미리보기 (휴장일 검사 안 함)
     if week and "--shot" not in args:
         sync_open_days()  # 주 1회 휴장일 갱신
@@ -191,7 +193,7 @@ def main():
     print("사진:", png)
     if "--shot" in args:
         return
-    for name in to.split(";"):  # 예: --to "나;가족;가족 단톡방"
+    for name in to.split(";"):  # 예: --to "나;가족 단톡방"
         hwnd, edit = open_room(name)
         if not focus(hwnd, edit):
             sys.exit(f"'{name}' 입력칸에 커서를 못 놓음. 안 보냄")
