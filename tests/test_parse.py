@@ -46,3 +46,12 @@ collect.dart = lambda *a, **k: {"status": "000", "group": [{"title": "일반사�
 z = {"name": "A", "sub_start": "2026-11-20", "sub_end": "2026-11-21", "pay": "2026-11-25", "refund": "2026-11-25"}
 assert collect.dart_check(z, {"A": "c"}) == "ok" and z["sub_end"] == "2026-11-21", z  # 날짜 하나면 안 건드림
 print("dart edge ok")
+
+import json  # noqa: E402
+cur = json.load(open(collect.os.path.join(collect.DATA, "ipos.json"), encoding="utf-8"))
+assert collect.dead_fields(cur, "2026-11-15") == [], collect.dead_fields(cur, "2026-11-15")  # 실데이터는 통과
+broken = {no: {**r, "inst_ratio": None} for no, r in cur.items()}
+assert collect.dead_fields(broken, "2026-11-15") == ["inst_ratio"]
+one = dict(cur); k = next(no for no, r in cur.items() if r["price"]); one[k] = {**cur[k], "inst_ratio": None}
+assert collect.dead_fields(one, "2026-11-15") == []  # 한 종목만 빈 건 정상
+print("fields ok")

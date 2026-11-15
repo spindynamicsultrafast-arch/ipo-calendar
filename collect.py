@@ -215,6 +215,17 @@ def dart_check(rec, filers):
     return "dart_fixed:" + "; ".join(bad) if bad else "ok"
 
 
+def dead_fields(recs, today):
+    """38 표기가 바뀌면 그 필드는 전 종목에서 한꺼번에 None 이 됨 -> 그런 필드 이름들.
+    종목 하나만 빈 건(수요예측 전, 38 반영 늦음) 정상이라 안 잡는다. 스팩은 밴드·수요예측이 없어 뺌."""
+    rs = [r for r in recs.values() if "스팩" not in r["name"]]
+    ended = [r for r in rs if r["sub_end"] < today]  # 청약 끝남 -> 공모가·청약경쟁률 있어야 함
+    priced = [r for r in rs if r["price"]]  # 공모가 확정 -> 수요예측 결과 있어야 함
+    groups = [(rs, ("underwriter", "band_high", "pay", "refund", "demand_end")),
+              (ended, ("price", "retail_ratio")), (priced, ("inst_ratio", "lockup_pct"))]
+    return [k for g, keys in groups if g for k in keys if all(r[k] is None for r in g)]
+
+
 # ---------- 실행 ----------
 
 def diff(old, new):
@@ -266,6 +277,8 @@ def main():
     # 목록엔 지난 종목도 늘 남아 있어서 정상일 때 0건은 사실상 없음
     if not rows or not parsed:
         sys.exit(f"38 파싱 실패: 목록 {len(rows)}행, 청약일 읽힌 상세 {parsed}건 (사이트 구조 변경 의심)")
+    if dead := dead_fields(recs, today.isoformat()):  # 필드 하나만 표기가 바뀐 경우 (등급이 조용히 사라짐)
+        sys.exit(f"38 필드 파싱 실패: {', '.join(dead)} 가 전 종목에서 비어 있음 (표기 변경 의심)")
 
     if os.environ.get("DART_API_KEY"):
         try:
