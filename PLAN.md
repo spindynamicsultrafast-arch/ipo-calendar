@@ -44,6 +44,7 @@ python collect.py            # 수집 + DART 대조 + 변경 감지
 ## 운영 루프 (2026-11-13)
 1. **20:47 KST, 노트북 작업 스케줄러 `IPO-collect` → GitHub Actions** (`gh workflow run`, 바로 시작. 예약 cron 은 몇 시간 밀려 백업만; 로그 `collect_trigger.log`) (`.github/workflows/update.yml`): `collect.py` 수집 → 등급 → `calendar.html` 커밋 → Pages 배포. 하루 한 번. 수요예측 결과가 낮에 나와 다음 날 바로 청약하는 경우(영업일 2일 차, 25종목 중 6)를 잡으려고 저녁에 돈다.
 2. **07:30, 노트북 작업 스케줄러 `IPO-kakao`**: `kakao_send.py` 가 휴장일(주말·`CLOSED`)이거나 오늘 A/B 일정이 없으면 안 보냄. 있으면 `?card=1` (오늘 + 그다음 가장 빠른 일정) 캡처를 가족 단톡방에 보냄.
+   **08:50, `IPO-kakao-open`**: `--today` = `?card=today` (오늘 일정만) 를 한 번 더. 조건은 07:30 과 같음. 동시호가(08:30~09:00) 매도 주문 알림용.
 3. **일요일 17:00, `IPO-kakao-week`**: `--week` = `?card=week` (다음 주 월~금 A/B + 평가 전 청약은 이름만) 캡처를 같은 단톡방에.
 
 조건: 노트북 켜짐·잠금 해제, 카톡 PC 로그인. 방은 채팅 탭 검색으로 열고 창 제목이 정확히 같을 때만 보냄 (`--to` 는 `;` 로 구분, 방 이름에 쉼표 있음).

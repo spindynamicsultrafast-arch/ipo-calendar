@@ -4,6 +4,7 @@
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
   python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
+  python kakao_send.py --today            # 오늘 일정만 (08:50 장 시작 전 알림용)
   옵션: --to "방이름[;방이름]" (기본 .env 의 KAKAO_SELF = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
@@ -85,11 +86,11 @@ def has_events(day, week=False):
                or (week and not it.get("grade") and sub(it, d)) for it in items for d in days)
 
 
-def shot(day, week=False):
-    """헤드리스 크롬으로 ?card=1 화면을 찍고 배경 여백을 잘라 PNG 경로를 돌려준다."""
+def shot(day, card=1):
+    """헤드리스 크롬으로 ?card=1|today|week 화면을 찍고 배경 여백을 잘라 PNG 경로를 돌려준다."""
     out = os.path.join(tempfile.gettempdir(), f"ipo_{day}.png")
     subprocess.run([CHROME, "--headless=new", "--hide-scrollbars", "--force-device-scale-factor=2",
-                    "--window-size=600,1600", f"--screenshot={out}", f"{URL}?card={'week' if week else 1}&day={day}&t={int(time.time())}"],
+                    "--window-size=600,1600", f"--screenshot={out}", f"{URL}?card={card}&day={day}&t={int(time.time())}"],
                    check=True, capture_output=True, timeout=60)
     img = Image.open(out).convert("RGB")
     bg = Image.new("RGB", img.size, img.getpixel((2, 2)))
@@ -192,7 +193,7 @@ def main():
     if not has_events(day, week):
         print(f"{day}: 보낼 일정 없음, 안 보냄")
         return
-    png = shot(day, week)
+    png = shot(day, "week" if week else "today" if "--today" in args else 1)
     print("사진:", png)
     if "--shot" in args:
         return
