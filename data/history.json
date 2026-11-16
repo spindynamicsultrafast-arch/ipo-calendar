@@ -1416,6 +1416,12 @@
   "status": "확정",
   "name": "영광와이케이엠씨",
   "no": "2342",
-  "source": "http://www.38.co.kr/html/fund/?o=v&no=2342"
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2342",
+  "ohlc": {
+   "o": 16170,
+   "h": 16500,
+   "l": 8820,
+   "c": 8850
+  }
  }
 }
