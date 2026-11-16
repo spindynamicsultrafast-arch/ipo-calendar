@@ -388,7 +388,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     const nx = Object.keys(byDate).sort().find(k => k > todayIso && show(k).length);
     const sec = (title, k) => `<h3 class="cday">${title}${k ? ' · ' + md(k) : ''}</h3>` +
       (k && show(k).length ? show(k).map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
-    weekEl.innerHTML = sec('오늘', todayIso) +  // ?card=today : 오늘만 (08:50 장 시작 전 알림)
+    weekEl.innerHTML = sec('오늘', todayIso) +  // ?card=today : 오늘만 (08:45 장 시작 전 알림)
       (qs.get('card') === 'today' ? '' : sec(!nx ? '다음 일정' : parse(nx) - today === 864e5 ? '내일' : '다음 일정', nx));
   }
 

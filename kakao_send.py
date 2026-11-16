@@ -4,7 +4,7 @@
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
   python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
-  python kakao_send.py --today            # 오늘 일정만, A/B 상장 있는 날만 (08:50 동시호가 매도 알림용)
+  python kakao_send.py --today            # 오늘 일정만, A/B 상장 있는 날만 (08:45 동시호가 매도 알림용)
   옵션: --to "방이름[;방이름]" (기본 .env 의 KAKAO_SELF = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
@@ -71,18 +71,38 @@ def is_open(d):
     return d.weekday() < 5 and d.isoformat() not in CLOSED
 
 
-def has_events(day, week=False, listing_only=False):
-    """보낼 일정이 있나. 평소: 오늘 A/B. week: 다음 주 월~금 A/B 또는 평가 전 청약."""
+def page_items():
     html = urllib.request.urlopen(URL, timeout=20).read().decode("utf-8")
-    items = json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
-                       .group(1).replace("<\\/", "</"))["items"]
+    return json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
+                      .group(1).replace("<\\/", "</"))["items"]
+
+
+def floor_px(price):
+    """상장일 하한가 = 공모가 60%, 호가 단위로 올림 (calendar.html floorPx 와 같은 계산)."""
+    x = int(price) * 6  # 하한가의 10배 (정수 계산)
+    t = next(u for lim, u in ((20000, 1), (50000, 5), (200000, 10), (500000, 50), (2000000, 100), (5000000, 500), (float("inf"), 1000)) if x < lim)
+    return -(-x // (10 * t)) * t
+
+
+def sell_msg(day):
+    """08:45 알림 글. 오늘 A/B 상장이 없으면 None."""
+    its = [it for it in page_items() if it.get("grade") in SHOW and it.get("listing") == day and it.get("price")]
+    if not its:
+        return None
+    rows = [f"{it['name']} · {', '.join(u.strip() for u in (it.get('underwriter') or '').split(','))}\r\n"
+            f"8시 30분 ~ 8시 55분, 지정가 {floor_px(it['price']):,}원(하한가) 전량 매도" for it in its]
+    return "\r\n".join(["[오늘 상장 매도]", *rows, "9시에 시초가로 체결됩니다.",
+                        "9시 지나 체결 확인, 안 됐으면 시장가로 매도 후 확인."])
+
+
+def has_events(day, week=False):
+    """보낼 일정이 있나. 평소: 오늘 A/B. week: 다음 주 월~금 A/B 또는 평가 전 청약."""
+    items = page_items()
     days = [day]
     if week:
         mon = dt.date.fromisoformat(day)
         mon += dt.timedelta(days=7 - mon.weekday())
         days = [(mon + dt.timedelta(days=i)).isoformat() for i in range(5)]
-    if listing_only:  # 08:50 알림: 상장일 동시호가 매도용이라 A/B 상장이 있는 날만
-        return any(it.get("grade") in SHOW and it.get("listing") == day for it in items)
     sub = lambda it, d: it.get("sub_start") and it["sub_start"] <= d <= it["sub_end"]
     return any((it.get("grade") in SHOW and (d in (it.get("refund"), it.get("listing")) or sub(it, d)))
                or (week and not it.get("grade") and sub(it, d)) for it in items for d in days)
@@ -192,11 +212,15 @@ def main():
     if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
-    if not has_events(day, week, "--today" in args):
+    today = "--today" in args  # 08:45 알림: A/B 상장이 있는 날만, 사진 뒤에 매도 안내 글
+    msg = sell_msg(day) if today else None
+    if not (msg if today else has_events(day, week)):
         print(f"{day}: 보낼 일정 없음, 안 보냄")
         return
-    png = shot(day, "week" if week else "today" if "--today" in args else 1)
+    png = shot(day, "week" if week else "today" if today else 1)
     print("사진:", png)
+    if msg:
+        print(msg)
     if "--shot" in args:
         return
     for name in to.split(";"):  # 예: --to "나;가족 단톡방"
@@ -208,6 +232,13 @@ def main():
         time.sleep(1.5)
         key(0x0D)  # 확인 창에서 전송
         time.sleep(1.5)
+        if msg:
+            if not focus(hwnd, edit):
+                sys.exit(f"'{name}' 사진은 보냈고 글은 못 보냄 (입력칸 커서)")
+            clip_set(13, (msg + "\0").encode("utf-16-le"))
+            key(0x11, 0x56)
+            key(0x0D)
+            time.sleep(1)
         print(f"{name}: 전송함")
 
 
