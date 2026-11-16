@@ -90,9 +90,12 @@ def sell_msg(day):
     if not its:
         return None
     rows = [f"{it['name']} · {', '.join(u.strip() for u in (it.get('underwriter') or '').split(','))}\r\n"
-            f"8시 30분 ~ 8시 55분, 지정가 {floor_px(it['price']):,}원(하한가) 전량 매도" for it in its]
-    return "\r\n".join(["[오늘 상장 매도]", *rows, "9시에 시초가로 체결됩니다.",
-                        "9시 지나 체결 확인, 안 됐으면 시장가로 매도 후 확인."])
+            f"시간  8:30 ~ 8:55\r\n"
+            f"주문  지정가(보통)\r\n"
+            f"가격  {floor_px(it['price']):,}원 (하한가)\r\n"
+            f"수량  전량" for it in its]
+    return "\r\n\r\n".join(["[오늘 상장 매도]", *rows,
+                            "9시에 시초가로 체결됩니다.\r\n9시 지나 체결 확인하고,\r\n안 됐으면 시장가로 매도하세요."])
 
 
 def has_events(day, week=False):
