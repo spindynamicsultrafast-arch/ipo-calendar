@@ -4,7 +4,7 @@
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송
   python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
-  python kakao_send.py --today            # 오늘 일정만 (08:50 장 시작 전 알림용)
+  python kakao_send.py --today            # 오늘 일정만, A/B 상장 있는 날만 (08:50 동시호가 매도 알림용)
   옵션: --to "방이름[;방이름]" (기본 .env 의 KAKAO_SELF = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
 휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
@@ -71,7 +71,7 @@ def is_open(d):
     return d.weekday() < 5 and d.isoformat() not in CLOSED
 
 
-def has_events(day, week=False):
+def has_events(day, week=False, listing_only=False):
     """보낼 일정이 있나. 평소: 오늘 A/B. week: 다음 주 월~금 A/B 또는 평가 전 청약."""
     html = urllib.request.urlopen(URL, timeout=20).read().decode("utf-8")
     items = json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
@@ -81,6 +81,8 @@ def has_events(day, week=False):
         mon = dt.date.fromisoformat(day)
         mon += dt.timedelta(days=7 - mon.weekday())
         days = [(mon + dt.timedelta(days=i)).isoformat() for i in range(5)]
+    if listing_only:  # 08:50 알림: 상장일 동시호가 매도용이라 A/B 상장이 있는 날만
+        return any(it.get("grade") in SHOW and it.get("listing") == day for it in items)
     sub = lambda it, d: it.get("sub_start") and it["sub_start"] <= d <= it["sub_end"]
     return any((it.get("grade") in SHOW and (d in (it.get("refund"), it.get("listing")) or sub(it, d)))
                or (week and not it.get("grade") and sub(it, d)) for it in items for d in days)
@@ -190,7 +192,7 @@ def main():
     if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
-    if not has_events(day, week):
+    if not has_events(day, week, "--today" in args):
         print(f"{day}: 보낼 일정 없음, 안 보냄")
         return
     png = shot(day, "week" if week else "today" if "--today" in args else 1)

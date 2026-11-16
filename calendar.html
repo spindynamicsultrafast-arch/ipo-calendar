@@ -352,6 +352,11 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     return p ? `최소 ${n}주 ${won(p * n * (it.deposit_pct || 50) / 100)}${it.price ? '' : ' (상단 기준)'}` : '최소 금액 미정';
   };
 
+  // 상장일 하한가 = 공모가 60%, 호가 단위로 올림 (올림이면 실제 하한가보다 낮을 일이 없어 주문 거부 안 남)
+  const tick = p => p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000;
+  const floorPx = p => { const t = tick(p * 6 / 10); return Math.ceil(p * 6 / 10 / t - 1e-9) * t; };
+  console.assert(floorPx(12000) === 7200 && floorPx(41700) === 25050 && floorPx(8300) === 4980 && floorPx(3300) === 1980, 'floorPx');
+
   // 이번 주 할 일: 오늘부터 7일
   const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : 7));
   const soon = events.filter(e => e.date >= todayIso && e.date < iso(weekEnd));
@@ -366,7 +371,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     const note = [it.underwriter && uw(it), e.type !== '환불' && price].filter(Boolean).join(' · ');
     return `<button type="button" class="todo" data-idx="${e.idx}" data-g="${it.grade || 'none'}">
       <span class="when num">${when}</span>
-      <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${minCash(it)}</small>` : ''}</span>
+      <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${minCash(it)}</small>` : ''}${e.type === '상장' && qs.get('card') === 'today' && it.price ? `<small class="money">08:30~08:55 매도 · 하한가 ${won(floorPx(it.price))}</small>` : ''}</span>
       ${gradeBadge(it.grade, false)}</button>`;
   };
   weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주 일정 없음</div>';
