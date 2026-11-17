@@ -246,7 +246,8 @@ def carry_withdrawn(old, recs, keep_from, filers):
 
 def dart_missing(known, filers, days=14):
     """DART 에 증권신고서를 냈고 곧 청약인데 우리 목록에 없는 공모주 -> 경고 문구들.
-    38 이 종목을 빠뜨렸을 때 알아채는 유일한 길. 상장사(유상증자)·스팩은 뺀다."""
+    38 이 종목을 빠뜨렸을 때 알아채는 유일한 길. 상장사·스팩·일반공모 아닌 것(주주배정 등)·철회는 뺀다.
+    2026-11-17 1년치 대조: 비상장 신고 9곳 = 주주/3자배정 4, 철회 3, 12월 청약 예정 2. 놓친 공모주 0."""
     today = dt.date.today()
     lo, hi, end = today.isoformat(), (today + dt.timedelta(days=days)).isoformat(), today + dt.timedelta(days=1)
     out = []
@@ -260,7 +261,9 @@ def dart_missing(known, filers, days=14):
             continue
         latest = max(general, key=lambda x: x["rcept_no"])
         sbd = dates_in(latest.get("sbd"))
-        if latest.get("corp_cls") == "E" and sbd and lo <= sbd[-1] <= hi:  # E = 비상장
+        how = next((g["list"] for g in r.get("group", []) if g.get("title") == "증권의종류"), [{}])[-1].get("slmthn")
+        if (latest.get("corp_cls") == "E" and how == "일반공모" and sbd and lo <= sbd[-1] <= hi  # E = 비상장
+                and not withdrawn({"name": name}, filers)):
             out.append(f"DART 엔 있는데 목록에 없음: {latest.get('corp_name', name)} (청약 {sbd[0][5:]}~{sbd[-1][5:]})")
         time.sleep(0.1)
     return out

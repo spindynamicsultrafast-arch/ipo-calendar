@@ -80,9 +80,11 @@ print("oos ok")
 
 # DART 누락 대조: 곧 청약하는 비상장사인데 목록에 없으면 경고. 상장사·스팩·아는 종목은 조용히
 _soon = (collect.dt.date.today() + collect.dt.timedelta(days=5)).isoformat()
-collect.dart = lambda path, corp_code, **k: {"status": "000", "group": [{"title": "일반사항", "list": [
-    {"rcept_no": "1", "corp_cls": "K" if corp_code == "listed" else "E", "corp_name": corp_code, "sbd": _soon}]}]}
+collect.dart = lambda path, corp_code, **k: {"status": "000", "list": [{"report_nm": "철회신고서"}] if corp_code == "gone" else [], "group": [
+    {"title": "일반사항", "list": [{"rcept_no": "1", "corp_cls": "K" if corp_code == "listed" else "E", "corp_name": corp_code, "sbd": _soon}]},
+    {"title": "증권의종류", "list": [{"slmthn": "주주배정" if corp_code == "rights" else "일반공모"}]}]}
 collect.time.sleep = lambda s: None
-w = collect.dart_missing({"아는것"}, {"아는것": "known", "새것": "new", "상장사": "listed", "무슨기업인수목적": "spac"})
+w = collect.dart_missing({"아는것"}, {"아는것": "known", "새것": "new", "상장사": "listed", "무슨기업인수목적": "spac",
+                                    "증자": "rights", "접음": "gone"})
 assert len(w) == 1 and "new" in w[0], w
 print("missing ok")
