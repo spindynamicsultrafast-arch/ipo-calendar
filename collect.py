@@ -316,6 +316,38 @@ def dart_inputs(rec, filers):
     return f"{rec['name']}: 38 숫자가 공시와 다름 ({', '.join(bad)}) — 등급 {grade(rec)} 다시 볼 것" if bad else None
 
 
+def kind_listing(html=None):
+    """거래소 KIND 공모기업현황 -> {정규화이름: 상장예정일}. 38 상장일을 대조할 둘째 출처 (DART 엔 상장일이 없음)."""
+    if html is None:
+        end = dt.date.today()
+        q = {"method": "searchPubofrProgComSub", "currentPageSize": "100", "pageIndex": "1", "orderMode": "1",
+             "orderStat": "D", "marketType": "", "searchCorpName": "", "forward": "pubofrprogcom_sub",
+             "fromDate": (end - dt.timedelta(days=180)).isoformat(), "toDate": end.isoformat()}  # 신고서 제출일 기준
+        req = urllib.request.Request("https://kind.krx.co.kr/listinvstg/pubofrprogcom.do",
+                                     data=urllib.parse.urlencode(q).encode(), headers=UA)
+        html = urllib.request.urlopen(req, timeout=30).read().decode("utf-8", "ignore")
+    out = {}
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, flags=re.S):
+        c = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>|&nbsp;", " ", x)).strip() for x in re.findall(r"<td[^>]*>(.*?)</td>", tr, flags=re.S)]
+        # 회사명, 신고서제출일, 수요예측, 청약, 납입일, 확정공모가, 공모금액, 상장예정일, 주선인
+        if len(c) >= 9 and re.fullmatch(r"\d{4}-\d{2}-\d{2}", c[7]):
+            out[norm(c[0])] = c[7]
+    return out
+
+
+def kind_check(recs, kl, today):
+    """38 상장일을 거래소 값과 맞춤. 38 이 비었으면 채우고, 다르면 거래소 값으로 덮고 경고. 상장일이 틀리면 08:45 매도 알림이 엉뚱한 날 감."""
+    out = []
+    for r in recs.values():
+        k = kl.get(norm(r["name"]))
+        if not k or k == r["listing"] or r["status"] == "철회" or max(k, r["listing"] or "") < today:
+            continue
+        if r["listing"]:
+            out.append(f"{r['name']}: 상장일이 38({r['listing']})과 거래소({k})가 다름 — 거래소 값으로 씀")
+        r["listing"] = k
+    return out
+
+
 def dead_fields(recs, today):
     """38 표기가 바뀌면 그 필드는 전 종목에서 한꺼번에 None 이 됨 -> 그런 필드 이름들.
     종목 하나만 빈 건(수요예측 전, 38 반영 늦음) 정상이라 안 잡는다. 스팩은 밴드·수요예측이 없어 뺌."""
@@ -417,6 +449,17 @@ def main():
         for rec in recs.values():
             rec["dart"] = "no_key"
 
+    soon = [r["name"] for r in recs.values() if grade(r) in ("A", "B")
+            and today.isoformat() <= (r["listing"] or "") <= (today + dt.timedelta(days=7)).isoformat()]
+    try:
+        kl = kind_listing()
+        kind_warns = kind_check(recs, kl, today.isoformat())
+        if not kl:
+            raise ValueError("0행")
+    except Exception as e:  # 거래소 사이트가 막혀도 수집은 계속. 곧 상장하는 A/B 가 있을 때만 알림
+        print("KIND 상장일 대조 실패:", e)
+        kind_warns = [f"거래소 상장일 대조 못 함 (곧 상장: {', '.join(soon)})"] if soon else []
+
     path = os.path.join(DATA, "ipos.json")
     old = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
     carry_withdrawn(old, recs, keep_from, filers)
@@ -436,6 +479,7 @@ def main():
     except Exception as e:
         print("DART 누락 대조 실패:", e)
         warns = []
+    warns += kind_warns
     for r in recs.values() if filers else ():  # 등급 입력값 재확인: 공모가 확정 ~ 상장 전 종목만
         if (r["price"] and r["inst_ratio"] is not None and "스팩" not in r["name"] and r["status"] != "철회"
                 and (r["listing"] or "9") >= today.isoformat()):

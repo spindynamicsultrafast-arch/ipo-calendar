@@ -98,3 +98,15 @@ assert collect.input_diffs({**ok, "price": 23000.0}, doc) == ["공모가"]
 assert collect.input_diffs({**ok, "inst_ratio": 1173.42}, doc) == ["기관경쟁률"]  # 자릿수 하나 더 붙은 오타
 assert collect.input_diffs({**ok, "lockup_pct": 5.7}, doc) == ["확약"]
 print("inputs ok")
+
+# 거래소 상장일 대조: 비었으면 채우고, 다르면 거래소 값 + 경고
+kl = collect.kind_listing("<table><tr><td>가나다</td><td>2026-10-19</td><td>a ~ b</td><td>c ~ d</td><td>2026-12-15</td>"
+                          "<td>-</td><td>-</td><td>&nbsp;2026-12-22</td><td>KB증권(주)</td></tr>"
+                          "<tr><td>미정사</td><td>x</td><td>x</td><td>x</td><td>x</td><td>-</td><td>-</td><td>-</td><td>y</td></tr></table>")
+assert kl == {"가나다": "2026-12-22"}, kl
+rs = {"1": {"name": "가나다", "listing": None, "status": "확정"}, "2": {"name": "가나다", "listing": "2026-12-21", "status": "확정"},
+      "3": {"name": "가나다", "listing": "2026-12-22", "status": "확정"}, "4": {"name": "딴회사", "listing": "2026-12-01", "status": "확정"}}
+w = collect.kind_check(rs, kl, "2026-11-17")
+assert [r["listing"] for r in rs.values()] == ["2026-12-22", "2026-12-22", "2026-12-22", "2026-12-01"], rs
+assert len(w) == 1 and "2026-12-21" in w[0], w
+print("kind ok")
