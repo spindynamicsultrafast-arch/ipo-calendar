@@ -1447,6 +1447,12 @@
   "status": "확정",
   "name": "옵토닉스",
   "no": "2338",
-  "source": "http://www.38.co.kr/html/fund/?o=v&no=2338"
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2338",
+  "ohlc": {
+   "o": 31000,
+   "h": 34850,
+   "l": 16480,
+   "c": 17470
+  }
  }
 }
