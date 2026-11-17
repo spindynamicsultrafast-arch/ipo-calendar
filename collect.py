@@ -269,6 +269,53 @@ def dart_missing(known, filers, days=14):
     return out
 
 
+def dart_doc(rcept_no):
+    """공시 본문 전체를 태그 뗀 한 줄 텍스트로."""
+    import io
+    import zipfile
+    url = "https://opendart.fss.or.kr/api/document.xml?" + urllib.parse.urlencode(
+        {"crtfc_key": os.environ["DART_API_KEY"], "rcept_no": rcept_no})
+    raw = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read()
+    z = zipfile.ZipFile(io.BytesIO(raw))
+    t = " ".join(z.read(x).decode("utf-8", "ignore") for x in z.namelist())
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t))
+
+
+def input_diffs(rec, t):
+    """등급을 정하는 38 숫자 셋(공모가·기관경쟁률·확약)이 발행조건확정 신고서 본문 t 에 있나 -> 안 맞는 항목들.
+    등급은 이 셋의 함수라, 셋이 공시와 맞으면 C 를 A 로(또는 반대로) 잘못 매길 일이 없다.
+    ponytail: 표를 읽지 않고 '38 값이 본문에 있나'만 본다. 38 이 확약을 0 으로 잘못 올린 경우는 못 잡음
+    (미확약 = 전체인 줄이 늘 있어 0 은 항상 통과). 2026-11-17 최근 9종목 전부 일치 확인."""
+    bad = []
+    if not re.search(rf"확정\s?공모가액[^0-9]{{0,40}}{int(rec['price']):,}원", t):
+        bad.append("공모가")
+    r = rec["inst_ratio"]
+    forms = {f"{r:,.2f}", f"{r:.2f}", f"{r:,.1f}", f"{r:,.2f}".rstrip("0").rstrip(".")}
+    if not any(re.search(rf"(?<![\d.,]){re.escape(f)}(?![\d.,])", t) for f in forms):
+        bad.append("기관경쟁률")
+    # 확약 = (전체 신청수량 - 미확약) / 전체. 전체 = '경쟁률' 행 바로 앞 수량, 미확약 = '미확약' 행의 수량들 중 하나
+    n = lambda s: float(s.replace(",", ""))
+    totals = {n(x) for x in re.findall(r"([\d,]{7,}) 경쟁률", t)}
+    unc = {n(x) for m in re.finditer("미확약", t) for x in re.findall(r"[\d,]{5,}", t[m.end():m.end() + 500])}
+    want = rec["lockup_pct"] or 0
+    if not any(abs((T - x) / T * 100 - want) < 0.011 for T in totals for x in unc if 0 <= x <= T):
+        bad.append("확약")
+    return bad
+
+
+def dart_inputs(rec, filers):
+    """38 숫자를 DART 발행조건확정 신고서와 대조. 맞으면 None, 아니면 경고 문구."""
+    code = filers.get(norm(rec["name"]))
+    end = dt.date.today()
+    lst = dart("list.json", corp_code=code, bgn_de=(end - dt.timedelta(days=89)).strftime("%Y%m%d"),
+               end_de=end.strftime("%Y%m%d"), pblntf_ty="C", page_count=100) if code else {}
+    nos = sorted((x["rcept_no"] for x in lst.get("list", []) if "발행조건확정" in x["report_nm"]), reverse=True)
+    if not nos:  # 공시가 아직 없으면 A/B 만 알림 (C·대기는 어차피 안 권함)
+        return f"{rec['name']}: {grade(rec)} 등급인데 공시로 확인 못 함" if grade(rec) in ("A", "B") else None
+    bad = input_diffs(rec, dart_doc(nos[0]))
+    return f"{rec['name']}: 38 숫자가 공시와 다름 ({', '.join(bad)}) — 등급 {grade(rec)} 다시 볼 것" if bad else None
+
+
 def dead_fields(recs, today):
     """38 표기가 바뀌면 그 필드는 전 종목에서 한꺼번에 None 이 됨 -> 그런 필드 이름들.
     종목 하나만 빈 건(수요예측 전, 38 반영 늦음) 정상이라 안 잡는다. 스팩은 밴드·수요예측이 없어 뺌."""
@@ -389,6 +436,16 @@ def main():
     except Exception as e:
         print("DART 누락 대조 실패:", e)
         warns = []
+    for r in recs.values() if filers else ():  # 등급 입력값 재확인: 공모가 확정 ~ 상장 전 종목만
+        if (r["price"] and r["inst_ratio"] is not None and "스팩" not in r["name"] and r["status"] != "철회"
+                and (r["listing"] or "9") >= today.isoformat()):
+            try:
+                w = dart_inputs(r, filers)
+            except Exception as e:  # 공시 내려받기 실패 등
+                w = f"{r['name']}: {grade(r)} 등급인데 공시 대조 실패 ({type(e).__name__})" if grade(r) in ("A", "B") else None
+            if w:
+                warns.append(w)
+            time.sleep(0.3)
     render({**hist, **recs}, warns)
 
     s = lambda v: "-" if v is None else v  # 0% 확약도 0 으로 보이게

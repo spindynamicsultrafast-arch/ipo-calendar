@@ -88,3 +88,13 @@ w = collect.dart_missing({"아는것"}, {"아는것": "known", "새것": "new", 
                                     "증자": "rights", "접음": "gone"})
 assert len(w) == 1 and "new" in w[0], w
 print("missing ok")
+
+# 등급 입력값 대조: 38 숫자가 공시 본문에 있나
+doc = ("확정공모가액 19,000원 기준 ... 수량 20,890,000 600,000 - 104,049,000 경쟁률 주2) 34.82 59.67 1.00 - 173.42 "
+       "미확약 1 600,000 19,000 - - - 705 103,452,000 16,817 15일 확약 6개월 확약 9 587,000 19,375 합계 715 104,049,000")
+ok = {"price": 19000.0, "inst_ratio": 173.42, "lockup_pct": 0.57}
+assert collect.input_diffs(ok, doc) == [], collect.input_diffs(ok, doc)
+assert collect.input_diffs({**ok, "price": 23000.0}, doc) == ["공모가"]
+assert collect.input_diffs({**ok, "inst_ratio": 1173.42}, doc) == ["기관경쟁률"]  # 자릿수 하나 더 붙은 오타
+assert collect.input_diffs({**ok, "lockup_pct": 5.7}, doc) == ["확약"]
+print("inputs ok")
