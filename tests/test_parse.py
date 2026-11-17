@@ -68,3 +68,12 @@ collect.carry_withdrawn(old, new, "2026-11-03", {"A": "c"})
 assert {no: r["status"] for no, r in new.items()} == {"5": "확정", "1": "철회", "4": "철회"}, new
 assert grade(new["1"]) == "철회"
 print("withdrawn ok")
+
+# 표본 밖 기록: 백테스트 이후 상장 + 등급 있는 것만
+g = {"price": 10000.0, "band_high": 10000.0, "inst_ratio": 900.0, "lockup_pct": 6.0}
+md = collect.oos_md({"1": {**g, "name": "새것", "listing": "2026-11-16", "ohlc": {"o": 15000, "c": 8000}},
+                     "2": {**g, "name": "옛것", "listing": "2026-11-12", "ohlc": {"o": 15000, "c": 8000}},
+                     "3": {**g, "name": "장중", "listing": "2026-11-18", "ohlc": None}})
+assert "| 2026-11-16 | 새것 | A | +50.0% | -20.0% |" in md and "| A | 1 | 0 | +50.0% | -20.0% |" in md, md
+assert "옛것" not in md and "장중" not in md, md
+print("oos ok")

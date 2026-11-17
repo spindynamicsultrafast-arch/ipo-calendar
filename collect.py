@@ -20,6 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
 DATE_KEYS = ("demand_start", "demand_end", "sub_start", "sub_end", "pay", "refund", "listing")
 UA = {"User-Agent": "Mozilla/5.0"}
+BACKTEST_END = "2026-11-12"  # 등급 기준을 정할 때 본 마지막 상장일 (PLAN.md 백테스트). 이후 상장 = 표본 밖
 
 
 def get(url, enc="cp949", tries=3):
@@ -254,6 +255,24 @@ def dead_fields(recs, today):
     return [k for g, keys in groups if g for k in keys if all(r[k] is None for r in g)]
 
 
+def oos_md(hist):
+    """백테스트 이후 상장한 종목의 등급 vs 상장 첫날 결과 (공모가 대비 %). data/out_of_sample.md 내용."""
+    import statistics as st
+    rows = sorted((r for r in hist.values() if (r.get("listing") or "") > BACKTEST_END and r.get("ohlc")
+                   and r.get("price") and "스팩" not in r["name"] and grade(r)), key=lambda r: r["listing"])
+    pct = lambda r, k: (r["ohlc"][k] / r["price"] - 1) * 100
+    out = [f"# 표본 밖 결과 ({BACKTEST_END} 이후 상장)", "",
+           "등급 기준을 정할 때 안 본 종목만. 수집 때마다 다시 씀. 수익은 공모가 대비, 시초가 매도 기준.", "",
+           "| 등급 | 종목 수 | 시초가 손실 | 시초가 중간값 | 첫날 종가 중간값 |", "|---|---|---|---|---|"]
+    for g in "ABC":
+        if xs := [r for r in rows if grade(r) == g]:
+            o = [pct(r, "o") for r in xs]
+            out.append(f"| {g} | {len(xs)} | {sum(v < 0 for v in o)} | {st.median(o):+.1f}% | {st.median(pct(r, 'c') for r in xs):+.1f}% |")
+    out += ["", "| 상장일 | 종목 | 등급 | 시초가 | 첫날 종가 |", "|---|---|---|---|---|"]
+    out += [f"| {r['listing']} | {r['name']} | {grade(r)} | {pct(r, 'o'):+.1f}% | {pct(r, 'c'):+.1f}% |" for r in rows]
+    return "\n".join(out) + "\n"
+
+
 # ---------- 실행 ----------
 
 def diff(old, new):
@@ -335,6 +354,7 @@ def main():
             for c in changes:
                 fp.write(f"{dt.datetime.now():%Y-%m-%d %H:%M} {c}\n")
     hist = history(str(today.year))
+    open(os.path.join(DATA, "out_of_sample.md"), "w", encoding="utf-8").write(oos_md(hist))
     for no, r in recs.items():
         r["ohlc"] = hist.get(no, {}).get("ohlc")
     render({**hist, **recs})
