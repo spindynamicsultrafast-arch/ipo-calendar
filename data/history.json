@@ -1423,5 +1423,30 @@
    "l": 8820,
    "c": 8850
   }
+ },
+ "2338": {
+  "demand_start": "2026-10-21",
+  "demand_end": "2026-10-27",
+  "sub_start": "2026-11-05",
+  "sub_end": "2026-11-06",
+  "pay": "2026-11-10",
+  "refund": "2026-11-10",
+  "listing": "2026-11-17",
+  "price": 12000.0,
+  "band_low": 10000.0,
+  "band_high": 12000.0,
+  "inst_ratio": 1201.81,
+  "lockup_pct": 5.62,
+  "retail_ratio": 1343.32,
+  "amount_mil": 26400.0,
+  "sector": "광학렌즈 및 광학요소 제조업",
+  "underwriter": "한국투자증권",
+  "code": "493260",
+  "deposit_pct": 50.0,
+  "min_shares": 10,
+  "status": "확정",
+  "name": "옵토닉스",
+  "no": "2338",
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2338"
  }
 }
