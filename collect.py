@@ -268,8 +268,9 @@ def oos_md(hist):
         if xs := [r for r in rows if grade(r) == g]:
             o = [pct(r, "o") for r in xs]
             out.append(f"| {g} | {len(xs)} | {sum(v < 0 for v in o)} | {st.median(o):+.1f}% | {st.median(pct(r, 'c') for r in xs):+.1f}% |")
-    out += ["", "| 상장일 | 종목 | 등급 | 시초가 | 첫날 종가 |", "|---|---|---|---|---|"]
-    out += [f"| {r['listing']} | {r['name']} | {grade(r)} | {pct(r, 'o'):+.1f}% | {pct(r, 'c'):+.1f}% |" for r in rows]
+    out += ["", "| 상장일 | 종목 | 등급 | 기관경쟁률 | 확약 | 시초가 | 첫날 종가 |", "|---|---|---|---|---|---|---|"]
+    out += [f"| {r['listing']} | {r['name']} | {grade(r)} | {r['inst_ratio']:,.0f}:1 | {r['lockup_pct'] or 0:.2f}% | "
+            f"{pct(r, 'o'):+.1f}% | {pct(r, 'c'):+.1f}% |" for r in rows]
     return "\n".join(out) + "\n"
 
 
