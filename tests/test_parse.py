@@ -55,3 +55,16 @@ assert collect.dead_fields(broken, "2026-11-15") == ["inst_ratio"]
 one = dict(cur); k = next(no for no, r in cur.items() if r["price"]); one[k] = {**cur[k], "inst_ratio": None}
 assert collect.dead_fields(one, "2026-11-15") == []  # 한 종목만 빈 건 정상
 print("fields ok")
+
+# 철회: 목록에서 사라진 종목은 철회신고서가 있을 때만 '철회' 로 남김
+collect.dart = lambda *a, **k: {"status": "000", "list": [{"report_nm": "철회신고서"}]}
+old = {"1": {"name": "A", "sub_end": "2026-11-19", "status": "예정"},   # 사라짐 + 철회신고서
+       "2": {"name": "B", "sub_end": "2026-11-19", "status": "예정"},   # 사라졌지만 DART 에 없는 회사
+       "3": {"name": "A", "sub_end": "2026-10-01", "status": "예정"},   # 오래돼서 빠진 것
+       "4": {"name": "B", "sub_end": "2026-11-19", "status": "철회"},   # 이미 철회로 찍힘 -> 조회 없이 유지
+       "5": {"name": "A", "sub_end": "2026-11-19", "status": "예정"}}   # 목록에 그대로 있음
+new = {"5": {"name": "A", "sub_end": "2026-11-19", "status": "확정"}}
+collect.carry_withdrawn(old, new, "2026-11-03", {"A": "c"})
+assert {no: r["status"] for no, r in new.items()} == {"5": "확정", "1": "철회", "4": "철회"}, new
+assert grade(new["1"]) == "철회"
+print("withdrawn ok")

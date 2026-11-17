@@ -88,6 +88,8 @@ def parse_detail(html):
 
 def grade(rec):
     """v0 수급·가격 등급. 수요예측 전이면 None. 기준은 PLAN.md 참고."""
+    if rec.get("status") == "철회":
+        return "철회"
     if rec["inst_ratio"] is None or not rec["price"] or not rec["band_high"]:
         return None
     top = rec["price"] >= rec["band_high"]
@@ -215,6 +217,32 @@ def dart_check(rec, filers):
     return "dart_fixed:" + "; ".join(bad) if bad else "ok"
 
 
+def withdrawn(rec, filers):
+    """DART 에 철회신고서가 있나."""
+    code = filers.get(norm(rec["name"]))
+    if not code:
+        return False
+    end = dt.date.today()
+    r = dart("list.json", corp_code=code, bgn_de=(end - dt.timedelta(days=89)).strftime("%Y%m%d"),
+             end_de=end.strftime("%Y%m%d"), pblntf_ty="C", page_count=100)
+    return any("철회신고서" in it["report_nm"] for it in r.get("list", []))
+
+
+def carry_withdrawn(old, recs, keep_from, filers):
+    """철회하면 38 목록에서 사라짐 -> 직전 기록을 status '철회' 로 남긴다 (청약일 지나 14일까지).
+    철회신고서가 확인된 것만. 한 번 철회로 찍힌 건 다시 조회 안 함."""
+    for no, prev in old.items():
+        if no in recs or (prev.get("sub_end") or "") < keep_from:
+            continue
+        try:
+            gone = prev.get("status") == "철회" or withdrawn(prev, filers)
+        except Exception as e:  # DART 장애 -> 이번엔 빠지고, 기록이 사라져 다음에도 못 살림 (드묾)
+            print("철회 확인 실패:", prev.get("name"), e)
+            gone = False
+        if gone:
+            recs[no] = {**prev, "status": "철회"}
+
+
 def dead_fields(recs, today):
     """38 표기가 바뀌면 그 필드는 전 종목에서 한꺼번에 None 이 됨 -> 그런 필드 이름들.
     종목 하나만 빈 건(수요예측 전, 38 반영 늦음) 정상이라 안 잡는다. 스팩은 밴드·수요예측이 없어 뺌."""
@@ -245,7 +273,8 @@ def render(recs):
     path = os.path.join(HERE, "calendar.html")
     keys = ("name", "sub_start", "sub_end", "refund", "listing", "price", "band_low", "band_high",
             "inst_ratio", "lockup_pct", "retail_ratio", "underwriter", "sector", "dart", "source", "ohlc", "deposit_pct", "min_shares")
-    items = [{**{k: r.get(k) for k in keys}, "grade": grade(r)}
+    items = [{**{k: r.get(k) for k in keys}, "grade": grade(r),
+              **({"refund": None, "listing": None} if r.get("status") == "철회" else {})}
              for r in sorted(recs.values(), key=lambda r: r["sub_start"]) if "스팩" not in r["name"]]
     blob = json.dumps({"generated_at": dt.datetime.now().isoformat(timespec="minutes"), "items": items},
                       ensure_ascii=False).replace("</", "<\\/")
@@ -280,12 +309,12 @@ def main():
     if dead := dead_fields(recs, today.isoformat()):  # 필드 하나만 표기가 바뀐 경우 (등급이 조용히 사라짐)
         sys.exit(f"38 필드 파싱 실패: {', '.join(dead)} 가 전 종목에서 비어 있음 (표기 변경 의심)")
 
+    filers = {}
     if os.environ.get("DART_API_KEY"):
         try:
             filers = dart_filers()
         except Exception as e:  # DART 접속 장애(타임아웃)로 페이지 갱신 전체가 멈추지 않게
             print("DART 목록 실패:", e)
-            filers = {}
         for rec in recs.values():
             try:
                 rec["dart"] = dart_check(rec, filers)
@@ -297,6 +326,7 @@ def main():
 
     path = os.path.join(DATA, "ipos.json")
     old = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
+    carry_withdrawn(old, recs, keep_from, filers)
     changes = diff(old, recs)
     os.makedirs(DATA, exist_ok=True)
     json.dump(recs, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

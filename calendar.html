@@ -87,6 +87,8 @@ button { font: inherit; color: inherit; }
 .g-A { background: var(--good-soft); color: var(--good); }
 .g-B { background: var(--mid-soft); color: var(--mid); }
 .g-C { background: var(--warn-soft); color: var(--warn); }
+.g-철회 { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--muted); font-size: 0.75rem; font-weight: 600; padding: 0 6px; text-decoration: line-through; }
+.verdict.g-철회 { font-size: 0.95rem; padding: 10px 14px; height: auto; display: block; text-decoration: none; }
 .g-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--muted); font-size: 0.75rem; font-weight: 600; padding: 0 6px; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 0.88rem; }
@@ -302,6 +304,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     A: '좋음 — 과거 A등급 101종목은 승률 100%, 시초가에 팔았을 때 수익 중간값은 +116%였어요.',
     B: '보통 — 과거 B등급 96종목은 승률 90%, 시초가에 팔았을 때 수익 중간값은 +55%였어요.',
     C: '주의 — 과거 C등급 68종목은 승률 60%, 시초가에 팔았을 때 수익 중간값은 +4%였어요.',
+    철회: '공모 철회 — 회사가 상장을 접었어요. 청약은 열리지 않아요.',
   };
 
   const pad = n => String(n).padStart(2, '0');
