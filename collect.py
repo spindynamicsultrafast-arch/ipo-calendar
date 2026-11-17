@@ -244,6 +244,28 @@ def carry_withdrawn(old, recs, keep_from, filers):
             recs[no] = {**prev, "status": "철회"}
 
 
+def dart_missing(known, filers, days=14):
+    """DART 에 증권신고서를 냈고 곧 청약인데 우리 목록에 없는 공모주 -> 경고 문구들.
+    38 이 종목을 빠뜨렸을 때 알아채는 유일한 길. 상장사(유상증자)·스팩은 뺀다."""
+    today = dt.date.today()
+    lo, hi, end = today.isoformat(), (today + dt.timedelta(days=days)).isoformat(), today + dt.timedelta(days=1)
+    out = []
+    for name, code in filers.items():
+        if name in known or "기업인수목적" in name or "스팩" in name:
+            continue
+        r = dart("estkRs.json", corp_code=code, bgn_de=(end - dt.timedelta(days=150)).strftime("%Y%m%d"),
+                 end_de=end.strftime("%Y%m%d"))
+        general = next((g["list"] for g in r.get("group", []) if g.get("title") == "일반사항"), [])
+        if not general:
+            continue
+        latest = max(general, key=lambda x: x["rcept_no"])
+        sbd = dates_in(latest.get("sbd"))
+        if latest.get("corp_cls") == "E" and sbd and lo <= sbd[-1] <= hi:  # E = 비상장
+            out.append(f"DART 엔 있는데 목록에 없음: {latest.get('corp_name', name)} (청약 {sbd[0][5:]}~{sbd[-1][5:]})")
+        time.sleep(0.1)
+    return out
+
+
 def dead_fields(recs, today):
     """38 표기가 바뀌면 그 필드는 전 종목에서 한꺼번에 None 이 됨 -> 그런 필드 이름들.
     종목 하나만 빈 건(수요예측 전, 38 반영 늦음) 정상이라 안 잡는다. 스팩은 밴드·수요예측이 없어 뺌."""
@@ -288,7 +310,7 @@ def diff(old, new):
     return out
 
 
-def render(recs):
+def render(recs, warnings=()):
     """calendar.html 안의 <script id="ipo-data"> 블록을 최신 데이터로 교체. 스팩 제외."""
     path = os.path.join(HERE, "calendar.html")
     keys = ("name", "sub_start", "sub_end", "refund", "listing", "price", "band_low", "band_high",
@@ -296,7 +318,8 @@ def render(recs):
     items = [{**{k: r.get(k) for k in keys}, "grade": grade(r),
               **({"refund": None, "listing": None} if r.get("status") == "철회" else {})}
              for r in sorted(recs.values(), key=lambda r: r["sub_start"]) if "스팩" not in r["name"]]
-    blob = json.dumps({"generated_at": dt.datetime.now().isoformat(timespec="minutes"), "items": items},
+    blob = json.dumps({"generated_at": dt.datetime.now().isoformat(timespec="minutes"), "items": items,
+                       "warnings": list(warnings)},
                       ensure_ascii=False).replace("</", "<\\/")
     html = open(path, encoding="utf-8").read()
     html = re.sub(r'(<script id="ipo-data" type="application/json">).*?(</script>)',
@@ -358,7 +381,12 @@ def main():
     open(os.path.join(DATA, "out_of_sample.md"), "w", encoding="utf-8").write(oos_md(hist))
     for no, r in recs.items():
         r["ohlc"] = hist.get(no, {}).get("ohlc")
-    render({**hist, **recs})
+    try:  # 경고 조회가 막혀도 달력 갱신은 함
+        warns = dart_missing({norm(r["name"]) for r in (*hist.values(), *recs.values())}, filers)
+    except Exception as e:
+        print("DART 누락 대조 실패:", e)
+        warns = []
+    render({**hist, **recs}, warns)
 
     s = lambda v: "-" if v is None else v  # 0% 확약도 0 으로 보이게
     for r in sorted(recs.values(), key=lambda r: r["sub_start"]):
@@ -368,6 +396,8 @@ def main():
     print(f"\n{len(recs)}종목, 변경 {len(changes)}건")
     for c in changes:
         print(" *", c)
+    for w in warns:
+        print(" !", w)
 
 
 if __name__ == "__main__":

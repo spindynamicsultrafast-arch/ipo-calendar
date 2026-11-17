@@ -71,10 +71,28 @@ def is_open(d):
     return d.weekday() < 5 and d.isoformat() not in CLOSED
 
 
-def page_items():
+def page_data():
     html = urllib.request.urlopen(URL, timeout=20).read().decode("utf-8")
     return json.loads(re.search(r'<script id="ipo-data" type="application/json">(.*?)</script>', html, re.S)
-                      .group(1).replace("<\\/", "</"))["items"]
+                      .group(1).replace("<\\/", "</"))
+
+
+def page_items():
+    return page_data()["items"]
+
+
+def warnings(day, data=None, now=None):
+    """나와의 채팅으로 보낼 확인 거리: 수집이 멈췄나, DART 와 어긋나나, 오늘 청약인데 등급이 없나."""
+    data = data or page_data()
+    out = list(data.get("warnings") or [])
+    age = ((now or dt.datetime.now()) - dt.datetime.fromisoformat(data["generated_at"])).total_seconds() / 3600
+    if age > 36:  # 하루치 수집을 통째로 놓침
+        out.append(f"달력 데이터가 {age:.0f}시간 전 것 (수집 실패?)")
+    wait = [it["name"] for it in data["items"]
+            if not it.get("grade") and it.get("sub_start") and it["sub_start"] <= day <= it["sub_end"]]
+    if wait:
+        out.append("오늘 청약인데 평가 전: " + ", ".join(wait))
+    return out
 
 
 def floor_px(price):
@@ -274,3 +292,15 @@ if __name__ == "__main__":
             except BaseException as e2:  # noqa: BLE001 알림 실패는 로그만
                 log(f"알림도 실패 | {e2}")
         raise
+    # 07:30 실행 때만: 놓친 게 없는지 확인 거리를 나와의 채팅에 (가족 단톡방엔 안 감)
+    # ponytail: 풀릴 때까지 매일 아침 같은 경고가 옴. 귀찮아지면 본 경고를 파일에 적어 한 번만
+    if not {"--shot", "--week", "--today"} & set(sys.argv):
+        try:
+            a = sys.argv
+            day = a[a.index("--date") + 1] if "--date" in a else dt.date.today().isoformat()
+            ws = warnings(day) if is_open(dt.date.fromisoformat(day)) else []
+            if ws:
+                log("확인 | " + " / ".join(ws))
+                alert("[공모주 확인]\r\n" + "\r\n".join(ws))
+        except BaseException as e:  # noqa: BLE001
+            log(f"확인 알림 실패 | {e!r}")

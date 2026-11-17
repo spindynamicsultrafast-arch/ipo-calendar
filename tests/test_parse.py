@@ -77,3 +77,12 @@ md = collect.oos_md({"1": {**g, "name": "새것", "listing": "2026-11-16", "ohlc
 assert "| 2026-11-16 | 새것 | A | 900:1 | 6.00% | +50.0% | -20.0% |" in md and "| A | 1 | 0 | +50.0% | -20.0% |" in md, md
 assert "옛것" not in md and "장중" not in md, md
 print("oos ok")
+
+# DART 누락 대조: 곧 청약하는 비상장사인데 목록에 없으면 경고. 상장사·스팩·아는 종목은 조용히
+_soon = (collect.dt.date.today() + collect.dt.timedelta(days=5)).isoformat()
+collect.dart = lambda path, corp_code, **k: {"status": "000", "group": [{"title": "일반사항", "list": [
+    {"rcept_no": "1", "corp_cls": "K" if corp_code == "listed" else "E", "corp_name": corp_code, "sbd": _soon}]}]}
+collect.time.sleep = lambda s: None
+w = collect.dart_missing({"아는것"}, {"아는것": "known", "새것": "new", "상장사": "listed", "무슨기업인수목적": "spac"})
+assert len(w) == 1 and "new" in w[0], w
+print("missing ok")

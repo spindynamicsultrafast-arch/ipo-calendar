@@ -89,6 +89,8 @@ button { font: inherit; color: inherit; }
 .g-C { background: var(--warn-soft); color: var(--warn); }
 .g-철회 { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--muted); font-size: 0.75rem; font-weight: 600; padding: 0 6px; text-decoration: line-through; }
 .verdict.g-철회 { font-size: 0.95rem; padding: 10px 14px; height: auto; display: block; text-decoration: none; }
+.warnbox { margin: 8px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 0.9rem; white-space: pre-line; }
+.card .warnbox { display: none !important; }
 .g-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); color: var(--muted); font-size: 0.75rem; font-weight: 600; padding: 0 6px; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 0.88rem; }
@@ -233,6 +235,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   <header>
     <h1>공모주 달력</h1>
     <p class="sub" id="asof"></p>
+    <p class="warnbox" id="warnbox" hidden></p>
     <div class="filter" role="group" aria-label="등급으로 거르기">
       <span class="filter-label">보기</span>
       <button type="button" class="fbtn" data-f="A" aria-pressed="true"><i class="grade g-A">A</i>좋음</button>
@@ -346,6 +349,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     const g = new Date(data.generated_at);
     document.getElementById('asof').textContent =
       `${g.getMonth() + 1}/${g.getDate()} ${pad(g.getHours())}:${pad(g.getMinutes())} 업데이트`;
+    // 놓친 게 있을 수 있다는 경고: 수집이 하루 넘게 멈춤 / DART 엔 있는데 목록에 없는 종목 (collect.dart_missing)
+    const hrs = Math.round((Date.now() - g) / 36e5);
+    const ws = [...(data.warnings || []), ...(hrs > 36 ? [`달력 데이터가 ${hrs}시간 전 것 (수집 실패?)`] : [])];
+    if (ws.length) { const w = document.getElementById('warnbox'); w.textContent = '확인 필요\n' + ws.join('\n'); w.hidden = false; }
   }
 
   // 최소 청약 증거금 = 공모가(미정이면 희망 상단) × 최소 주수 × 증거금률
