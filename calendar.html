@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
 <style>
-/* 레이아웃: 위에 '이번 주 할 일' 큰 글씨 요약, 아래 월 달력 + 다음 주 일정 목록(이번 주 뒤부터). 종목 누르면 상세 창. */
+/* 레이아웃: 위에 '이번 주 일정' 큰 글씨 요약, 아래 월 달력 + 다음 주 일정 목록(이번 주 뒤부터). 종목 누르면 상세 창. */
 :root {
   --bg: #f5f7fa;
   --surface: #ffffff;
@@ -249,7 +249,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 
   <section class="week" aria-labelledby="week-h">
     <div class="tabs" role="tablist">
-      <button type="button" class="tab" role="tab" id="week-h" aria-controls="week" aria-selected="true">이번 주 할 일</button>
+      <button type="button" class="tab" role="tab" id="week-h" aria-controls="week" aria-selected="true">이번 주 일정</button>
       <button type="button" class="tab" role="tab" id="ag-h" aria-controls="agenda" aria-selected="false">다음 주 일정</button>
     </div>
     <div class="week-list" id="week" role="tabpanel" aria-labelledby="week-h"></div>
@@ -304,7 +304,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 (() => {
   const data = JSON.parse(document.getElementById('ipo-data').textContent);
   const items = data.items;
-  if (matchMedia('(max-width: 640px)').matches) document.querySelectorAll('details.fold').forEach(d => { d.open = false; });  // 모바일: 이번 주 할 일만 펼침
+  if (matchMedia('(max-width: 640px)').matches) document.querySelectorAll('details.fold').forEach(d => { d.open = false; });  // 모바일: 이번 주 일정만 펼침
   const fkey = g => ['A', 'B', 'C'].includes(g) ? g : 'none';  // 철회는 '평가 전' 필터를 따라감
   const off = new Set(['C', 'none']);  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함). 저장 안 함: 열 때마다 A·B 만
   let sel = null;       // 선택한 종목 idx (같은 이유로 위에 선언)
@@ -353,7 +353,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   // ?card=1 : 카톡 사진용. 오늘 + 다음 일정만. ?card=today : 오늘만. ?card=week : 다음 주. ?day=YYYY-MM-DD 로 날짜 바꿔 보기
   const qs = new URLSearchParams(location.search), card = qs.has('card');
   const today = qs.get('day') ? parse(qs.get('day')) : new Date(); today.setHours(0, 0, 0, 0);
-  if (card) { document.body.classList.add('card'); document.getElementById('week-h').textContent = '오늘 공모주'; }
+  if (card) { document.documentElement.dataset.theme = 'light';  // 카톡 사진은 항상 밝은 화면 (PC 가 다크여도)
+    document.body.classList.add('card'); document.getElementById('week-h').textContent = '오늘 공모주'; }
   const todayIso = iso(today);
 
   if (data.generated_at) {
@@ -378,7 +379,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const floorPx = p => { const t = tick(p * 6 / 10); return Math.ceil(p * 6 / 10 / t - 1e-9) * t; };
   console.assert(floorPx(12000) === 7200 && floorPx(41700) === 25050 && floorPx(8300) === 4980 && floorPx(3300) === 1980, 'floorPx');
 
-  // 이번 주 할 일: 오늘부터 이번 주 금요일까지 (주말엔 비고, '다음 주 일정' 탭이 먼저 열림)
+  // 이번 주 일정: 오늘부터 이번 주 금요일까지 (주말엔 비고, '다음 주 일정' 탭이 먼저 열림)
   const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : (8 - today.getDay()) % 7 || 7));  // 다음 주 월요일
   const soon = events.filter(e => e.date >= todayIso && e.date < iso(weekEnd));
   // 청약은 종목당 한 줄로 묶기
@@ -457,7 +458,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
   drawMonth();
 
-  // 다음 주 일정: '이번 주 할 일' 바로 다음 한 주(월~금)만. 그 뒤는 등급도 없고 날짜도 바뀌어서 안 싣는다 (달력엔 있음)
+  // 다음 주 일정: '이번 주 일정' 바로 다음 한 주(월~금)만. 그 뒤는 등급도 없고 날짜도 바뀌어서 안 싣는다 (달력엔 있음)
   // 평가 전은 버튼과 상관없이 항상 보임 (예고편). A·B·C·철회는 버튼을 따름
   // 청약은 종목당 한 줄(그 주 첫날에) + 끝나는 날짜. 금~월 청약은 이번 주에도 다음 주에도 나옴
   document.querySelectorAll('.tab').forEach(t => t.onclick = () => document.querySelectorAll('.tab').forEach(x => {
