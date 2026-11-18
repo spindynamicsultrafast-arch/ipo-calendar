@@ -1478,6 +1478,12 @@
   "status": "확정",
   "name": "에이엘로봇",
   "no": "2331",
-  "source": "http://www.38.co.kr/html/fund/?o=v&no=2331"
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2331",
+  "ohlc": {
+   "o": 15100,
+   "h": 18690,
+   "l": 12500,
+   "c": 13270
+  }
  }
 }
