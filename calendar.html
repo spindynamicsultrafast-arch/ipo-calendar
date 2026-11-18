@@ -299,9 +299,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const data = JSON.parse(document.getElementById('ipo-data').textContent);
   const items = data.items;
   if (matchMedia('(max-width: 640px)').matches) document.querySelectorAll('details.fold').forEach(d => { d.open = false; });  // 모바일: 이번 주 할 일만 펼침
-  let off = new Set(['C', 'none']);  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함)
+  const fkey = g => ['A', 'B', 'C'].includes(g) ? g : 'none';  // 철회는 '평가 전' 필터를 따라감
+  const off = new Set(['C', 'none']);  // 꺼진 등급 (달력 첫 그리기 전에 선언돼야 함). 저장 안 함: 열 때마다 A·B 만
   let sel = null;       // 선택한 종목 idx (같은 이유로 위에 선언)
-  try { off = new Set(JSON.parse(localStorage.getItem('ipo-off') || '["C","none"]')); } catch (_) {}
   const DOW = ['일', '월', '화', '수', '목', '금', '토'];
   const MEANING = {
     A: '좋음 — 과거 A등급 101종목은 승률 100%, 시초가에 팔았을 때 수익 중간값은 +116%였어요.',
@@ -367,8 +367,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const floorPx = p => { const t = tick(p * 6 / 10); return Math.ceil(p * 6 / 10 / t - 1e-9) * t; };
   console.assert(floorPx(12000) === 7200 && floorPx(41700) === 25050 && floorPx(8300) === 4980 && floorPx(3300) === 1980, 'floorPx');
 
-  // 이번 주 할 일: 오늘부터 7일
-  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : 7));
+  // 이번 주 할 일: 오늘부터 이번 주 금요일까지. 주말에 열면 다음 주 월~금
+  const wk = today.getDay() % 6 ? '이번 주' : '다음 주';
+  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : (6 - today.getDay()) || 7));  // 다가오는 토요일
   const soon = events.filter(e => e.date >= todayIso && e.date < iso(weekEnd));
   // 청약은 종목당 한 줄로 묶기
   const seen = new Set();
@@ -379,12 +380,12 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     const when = e.type === '청약' && it.sub_end !== it.sub_start ? `${md(it.sub_start)}<small>~ ${md(it.sub_end)}</small>` : md(e.date);
     const price = it.price ? `공모가 ${won(it.price)}` : `공모가 미정 ${won(it.band_low)}~${won(it.band_high)}`;
     const note = [it.underwriter && uw(it), e.type !== '환불' && price].filter(Boolean).join(' · ');
-    return `<button type="button" class="todo" data-idx="${e.idx}" data-g="${it.grade || 'none'}">
+    return `<button type="button" class="todo" data-idx="${e.idx}" data-g="${fkey(it.grade)}">
       <span class="when num">${when}</span>
       <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${minCash(it)}</small>` : ''}${e.type === '상장' && qs.get('card') === 'today' && it.price ? `<small class="money">08:30~08:55 매도 · 하한가 ${won(floorPx(it.price))}</small>` : ''}</span>
       ${gradeBadge(it.grade, false)}</button>`;
   };
-  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주 일정 없음</div>';
+  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : `<div class="empty">${wk} 일정 없음</div>`;
   if (qs.get('card') === 'week') {  // 일요일용: 다음 주 월~금 A/B 일정 + 평가 전 청약은 '청약 예정' 이름만
     const mon = new Date(today); mon.setDate(mon.getDate() + 7 - (today.getDay() + 6) % 7);
     const ks = [0, 1, 2, 3, 4].map(i => { const d = new Date(mon); d.setDate(d.getDate() + i); return iso(d); });
@@ -394,7 +395,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       (ks.some(k => ab(k).length) ? ks.filter(k => ab(k).length).map(k => ab(k).map(todoHtml).join('')).join('') : '<div class="empty">A·B 일정 없음</div>') +
       (wait.length ? `<h3 class="cday">청약 예정 · 평가 전</h3><div class="empty">${wait.map(i => `${esc(items[i].name)} · 청약 ${md(items[i].sub_start)}`).join('<br>')}</div>` : '');
   } else if (card) {  // 사진용: 오늘 + 그다음 가장 빠른 일정 (다음 거래일이 아니어도)
-    const show = k => (byDate[k] || []).filter(e => !off.has(items[e.idx].grade || 'none'));
+    const show = k => (byDate[k] || []).filter(e => !off.has(fkey(items[e.idx].grade)));
     const nx = Object.keys(byDate).sort().find(k => k > todayIso && show(k).length);
     const sec = (title, k) => `<h3 class="cday">${title}${k ? ' · ' + md(k) : ''}</h3>` +
       (k && show(k).length ? show(k).map(todoHtml).join('') : '<div class="empty">일정 없음</div>');
@@ -416,7 +417,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       const it = items[e.idx];
       const join = (e.joinL ? ' joinL' : '') + (e.joinR ? ' joinR' : '');
       const rest = e.joinL ? ' tabindex="-1" aria-hidden="true"' : '';
-      return `<button type="button" class="chip t-${e.type}${join}" data-idx="${e.idx}" data-g="${it.grade || 'none'}" title="${e.type} · ${esc(it.name)}"${rest}><b>${e.type[0]}</b>${esc(it.name)}${it.grade ? `<span class="gr">${it.grade}</span>` : ''}</button>`;
+      return `<button type="button" class="chip t-${e.type}${join}" data-idx="${e.idx}" data-g="${fkey(it.grade)}" title="${e.type} · ${esc(it.name)}"${rest}><b>${e.type[0]}</b>${esc(it.name)}${it.grade ? `<span class="gr">${it.grade}</span>` : ''}</button>`;
     };
     for (let w = 0; w < 6; w++) {
       const days = Array.from({ length: 7 }, (_, c) => { const d = new Date(start); d.setDate(start.getDate() + w * 7 + c); return d; });
@@ -424,7 +425,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       // 주 단위로 줄(slot) 배정: 상장 > 청약 > 환불 순으로 위 줄. 이틀 청약은 같은 줄을 유지해 막대가 어긋나지 않게.
       const runs = {};
       days.forEach((d, c) => (byDate[iso(d)] || []).forEach(e => {
-        if (!off.has(items[e.idx].grade || 'none')) (runs[e.type + e.idx] ||= { e, cols: [] }).cols.push([c, e]);
+        if (!off.has(fkey(items[e.idx].grade))) (runs[e.type + e.idx] ||= { e, cols: [] }).cols.push([c, e]);
       }));
       const slots = days.map(() => []);
       Object.values(runs).sort((a, b) => ORDER[a.e.type] - ORDER[b.e.type] || a.cols[0][0] - b.cols[0][0] || a.e.idx - b.e.idx)
@@ -446,7 +447,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
   drawMonth();
 
-  // 그 다음 일정: '이번 주 할 일'(7일) 뒤부터. 겹치지 않게
+  // 그 다음 일정: '이번 주 할 일'(금요일까지) 뒤부터. 겹치지 않게
   // 청약은 종목당 한 줄(남은 첫날에) + 끝나는 날짜. 이번 주에 이미 나온 청약은 뺌
   const subSeen = new Set(todo.filter(e => e.type === '청약').map(e => e.idx)), agByDate = {};
   events.filter(e => e.date >= iso(weekEnd)).forEach(e => {
@@ -463,7 +464,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const upcoming = Object.keys(agByDate).sort();
   document.getElementById('agenda').innerHTML = upcoming.length ? upcoming.map(k => `
     <div class="agenda-day"><div class="date num">${md(k)}</div><div class="agenda-items">
-      ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}" data-g="${items[e.idx].grade || 'none'}"><i class="tag t-${e.type}">${e.type}</i>
+      ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}" data-g="${fkey(items[e.idx].grade)}"><i class="tag t-${e.type}">${e.type}</i>
         <span class="nm">${esc(items[e.idx].name)}${until(e)}${items[e.idx].underwriter ? `<small class="uw">${esc(uwShort(items[e.idx].underwriter))}</small>` : ''}</span>${gradeBadge(items[e.idx].grade, false)}</button>`).join('')}
     </div></div>`).join('') : '<div class="empty">예정된 일정 없음</div>';
 
@@ -472,6 +473,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     document.querySelectorAll('.fbtn').forEach(b => b.setAttribute('aria-pressed', String(!off.has(b.dataset.f))));
     document.querySelectorAll('[data-g]').forEach(el => { el.hidden = off.has(el.dataset.g); });
     document.querySelectorAll('.agenda-day').forEach(d => { d.hidden = !d.querySelector('.row:not([hidden])'); });
+    // C·평가 전까지 켜면 '할 일'이 아니라 그냥 일정 (청약할지 모르는 종목이 섞임)
+    if (!card) document.getElementById('week-h').textContent = wk + (off.has('C') && off.has('none') ? ' 할 일' : ' 일정');
     const msg = (id, sel, text) => {
       const box = document.getElementById(id);
       let m = box.querySelector('.filtered');
@@ -479,12 +482,11 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       if (none && !m) box.insertAdjacentHTML('beforeend', `<div class="empty filtered">${text}</div>`);
       if (!none && m) m.remove();
     };
-    msg('week', '.todo', '이번 주 일정 없음');
+    msg('week', '.todo', wk + ' 일정 없음');
     msg('agenda', '.agenda-day', '예정된 일정 없음');
   }
   document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
     off.has(b.dataset.f) ? off.delete(b.dataset.f) : off.add(b.dataset.f);
-    try { localStorage.setItem('ipo-off', JSON.stringify([...off])); } catch (_) {}
     drawMonth();
   });
   applyFilter();
