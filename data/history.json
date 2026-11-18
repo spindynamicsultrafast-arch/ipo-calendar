@@ -1454,5 +1454,30 @@
    "l": 16480,
    "c": 17470
   }
+ },
+ "2331": {
+  "demand_start": "2026-10-28",
+  "demand_end": "2026-11-03",
+  "sub_start": "2026-11-06",
+  "sub_end": "2026-11-09",
+  "pay": "2026-11-11",
+  "refund": "2026-11-11",
+  "listing": "2026-11-18",
+  "price": 17600.0,
+  "band_low": 15700.0,
+  "band_high": 17600.0,
+  "inst_ratio": 871.74,
+  "lockup_pct": 1.13,
+  "retail_ratio": 834.73,
+  "amount_mil": 42240.0,
+  "sector": "기타 기계 및 장비 제조업",
+  "underwriter": "대신증권",
+  "code": "471800",
+  "deposit_pct": 50.0,
+  "min_shares": 10,
+  "status": "확정",
+  "name": "에이엘로봇",
+  "no": "2331",
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2331"
  }
 }
