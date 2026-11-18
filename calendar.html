@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
 <style>
-/* 레이아웃: 위에 '이번 주 할 일' 큰 글씨 요약, 아래 월 달력 + 그 다음 일정 목록(이번 주 뒤부터). 종목 누르면 상세 창. */
+/* 레이아웃: 위에 '이번 주 할 일' 큰 글씨 요약, 아래 월 달력 + 다음 주 일정 목록(이번 주 뒤부터). 종목 누르면 상세 창. */
 :root {
   --bg: #f5f7fa;
   --surface: #ffffff;
@@ -68,6 +68,12 @@ button { font: inherit; color: inherit; }
 
 /* 이번 주 */
 .week { display: grid; gap: 10px; }
+.tabs { display: flex; gap: 18px; }
+.tab { background: none; border: 0; border-bottom: 2.5px solid transparent; padding: 4px 0; font-size: 1.15rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--fg); border-color: var(--fg); }
+.pl { font-weight: 700; white-space: nowrap; }
+.pl.win { color: #e03131; }   /* 국내 관례: 오르면 빨강, 내리면 파랑 */
+.pl.lose { color: #4c8dff; }
 .week-list { display: grid; gap: 10px; }
 .todo { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; text-align: left;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
@@ -132,7 +138,7 @@ button { font: inherit; color: inherit; }
 .chip.joinL { margin-left: -5px; border-top-left-radius: 0; border-bottom-left-radius: 0; color: transparent; }
 .until { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
 
-/* 그 다음 일정 */
+/* 다음 주 일정 */
 .agenda { display: grid; gap: 14px; }
 .agenda-day { display: grid; grid-template-columns: 6.5em 1fr; gap: 12px; align-items: start; }
 .agenda-day .date { font-weight: 600; padding-top: 6px; white-space: nowrap; }
@@ -212,7 +218,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .fold { border-top: 1px solid var(--line); }
   .fold > summary { display: list-item; font-size: 1.15rem; font-weight: 700; padding: 14px 0; cursor: pointer; }
   .fold[open] > summary { padding-bottom: 8px; }
-  .fold #ag-h { display: none; }
+  .fold #sc-h { display: none; }
   .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
   .day { min-height: 64px; }
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
@@ -226,7 +232,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .agenda-day .date { padding-top: 0; }
 }
 .cday { margin: 8px 0 0; font-size: 1.05rem; }
-.card .split, .card footer, .card #week-h, .card .filter, .card .sub { display: none !important; }
+.card .split, .card footer, .card .tabs, .card .filter, .card .sub { display: none !important; }
 .card .wrap { padding-bottom: 20px; max-width: 420px; margin: 0; }  /* 사진 폭 고정 (헤드리스 크롬 창은 500px 미만이 안 됨) */
 @media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
 </style>
@@ -246,8 +252,12 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   </header>
 
   <section class="week" aria-labelledby="week-h">
-    <h2 id="week-h">이번 주 할 일</h2>
-    <div class="week-list" id="week"></div>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" role="tab" id="week-h" aria-controls="week" aria-selected="true">이번 주 할 일</button>
+      <button type="button" class="tab" role="tab" id="ag-h" aria-controls="agenda" aria-selected="false">다음 주 일정</button>
+    </div>
+    <div class="week-list" id="week" role="tabpanel" aria-labelledby="week-h"></div>
+    <div class="agenda" id="agenda" role="tabpanel" aria-labelledby="ag-h" hidden></div>
     <div class="legend" aria-label="등급 뜻">
       <span><i class="grade g-A">A</i>좋음 · 승률 100% · 수익 +116%</span>
       <span><i class="grade g-B">B</i>보통 · 승률 90% · 수익 +55%</span>
@@ -277,10 +287,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   <div class="side">
   <div class="scrim" id="scrim" hidden></div>
   <aside class="detail dlg" id="detail" aria-live="polite" aria-labelledby="dlg-name" hidden></aside>
-  <details class="fold" open><summary>그 다음 일정</summary>
-  <section class="agenda" aria-labelledby="ag-h">
-    <h2 id="ag-h">그 다음 일정</h2>
-    <div class="agenda" id="agenda"></div>
+  <details class="fold" open><summary>이번 주 성적표</summary>
+  <section class="agenda" aria-labelledby="sc-h">
+    <h2 id="sc-h">이번 주 성적표</h2>
+    <div class="agenda-items" id="score"></div>
   </section>
   </details>
   </div>
@@ -317,6 +327,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const won = v => v == null ? '-' : Math.round(v).toLocaleString('ko-KR') + '원';
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const gradeBadge = (g, big) => g ? `<i class="grade g-${g}">${g}</i>` : `<i class="grade g-none">${big ? '수요예측 전' : '대기'}</i>`;
+  // 철회 종목은 '청약' 대신 '철회' 꼬리표 (회색). 열리지 않는 청약이라
+  const wd = e => items[e.idx].grade === '철회', label = e => wd(e) ? '철회' : e.type, tcls = e => wd(e) ? '환불' : e.type;
+  const tag = e => `<i class="tag t-${tcls(e)}">${label(e)}</i>`;
 
   // 일정 이벤트 펼치기 (청약은 평일만)
   const events = [];
@@ -331,6 +344,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       days.forEach((k, i) => events.push({ date: k, type: '청약', idx,
         joinL: i > 0 && adj(days[i - 1], k), joinR: i < days.length - 1 && adj(k, days[i + 1]) }));
     }
+    // 환불·상장은 청약할 종목(A·B)만. C·평가 전은 청약 줄만 (청약 안 한 종목의 환불·상장은 군더더기). 상세 창엔 날짜 그대로 나옴
+    if (!['A', 'B'].includes(it.grade)) return;
     if (it.refund) events.push({ date: it.refund, type: '환불', idx });
     if (it.listing) events.push({ date: it.listing, type: '상장', idx });
   });
@@ -367,9 +382,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const floorPx = p => { const t = tick(p * 6 / 10); return Math.ceil(p * 6 / 10 / t - 1e-9) * t; };
   console.assert(floorPx(12000) === 7200 && floorPx(41700) === 25050 && floorPx(8300) === 4980 && floorPx(3300) === 1980, 'floorPx');
 
-  // 이번 주 할 일: 오늘부터 이번 주 금요일까지. 주말에 열면 다음 주 월~금
-  const wk = today.getDay() % 6 ? '이번 주' : '다음 주';
-  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : (6 - today.getDay()) || 7));  // 다가오는 토요일
+  // 이번 주 할 일: 오늘부터 이번 주 금요일까지 (주말엔 비고, '다음 주 일정' 탭이 먼저 열림)
+  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + (card ? 2 : (8 - today.getDay()) % 7 || 7));  // 다음 주 월요일
   const soon = events.filter(e => e.date >= todayIso && e.date < iso(weekEnd));
   // 청약은 종목당 한 줄로 묶기
   const seen = new Set();
@@ -382,10 +396,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     const note = [it.underwriter && uw(it), e.type !== '환불' && price].filter(Boolean).join(' · ');
     return `<button type="button" class="todo" data-idx="${e.idx}" data-g="${fkey(it.grade)}">
       <span class="when num">${when}</span>
-      <span class="what"><i class="tag t-${e.type}">${e.type}</i>${esc(it.name)}<small>${note}</small>${e.type === '청약' ? `<small class="money">${minCash(it)}</small>` : ''}${e.type === '상장' && qs.get('card') === 'today' && it.price ? `<small class="money">08:30~08:55 매도 · 하한가 ${won(floorPx(it.price))}</small>` : ''}</span>
+      <span class="what">${tag(e)}${esc(it.name)}<small>${note}</small>${e.type === '청약' && !wd(e) ?`<small class="money">${minCash(it)}</small>` : ''}${e.type === '상장' && qs.get('card') === 'today' && it.price ? `<small class="money">08:30~08:55 매도 · 하한가 ${won(floorPx(it.price))}</small>` : ''}</span>
       ${gradeBadge(it.grade, false)}</button>`;
   };
-  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : `<div class="empty">${wk} 일정 없음</div>`;
+  weekEl.innerHTML = todo.length ? todo.map(todoHtml).join('') : '<div class="empty">이번 주 일정 없음</div>';
   if (qs.get('card') === 'week') {  // 일요일용: 다음 주 월~금 A/B 일정 + 평가 전 청약은 '청약 예정' 이름만
     const mon = new Date(today); mon.setDate(mon.getDate() + 7 - (today.getDay() + 6) % 7);
     const ks = [0, 1, 2, 3, 4].map(i => { const d = new Date(mon); d.setDate(d.getDate() + i); return iso(d); });
@@ -417,7 +431,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       const it = items[e.idx];
       const join = (e.joinL ? ' joinL' : '') + (e.joinR ? ' joinR' : '');
       const rest = e.joinL ? ' tabindex="-1" aria-hidden="true"' : '';
-      return `<button type="button" class="chip t-${e.type}${join}" data-idx="${e.idx}" data-g="${fkey(it.grade)}" title="${e.type} · ${esc(it.name)}"${rest}><b>${e.type[0]}</b>${esc(it.name)}${it.grade ? `<span class="gr">${it.grade}</span>` : ''}</button>`;
+      return `<button type="button" class="chip t-${tcls(e)}${join}" data-idx="${e.idx}" data-g="${fkey(it.grade)}" title="${label(e)} · ${esc(it.name)}"${rest}><b>${label(e)[0]}</b>${esc(it.name)}${it.grade ? `<span class="gr">${it.grade}</span>` : ''}</button>`;
     };
     for (let w = 0; w < 6; w++) {
       const days = Array.from({ length: 7 }, (_, c) => { const d = new Date(start); d.setDate(start.getDate() + w * 7 + c); return d; });
@@ -447,12 +461,29 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
   drawMonth();
 
-  // 그 다음 일정: '이번 주 할 일'(금요일까지) 뒤부터. 겹치지 않게
-  // 청약은 종목당 한 줄(남은 첫날에) + 끝나는 날짜. 이번 주에 이미 나온 청약은 뺌
-  const subSeen = new Set(todo.filter(e => e.type === '청약').map(e => e.idx)), agByDate = {};
-  events.filter(e => e.date >= iso(weekEnd)).forEach(e => {
-    if (e.type === '청약') { if (subSeen.has(e.idx)) return; subSeen.add(e.idx); }
-    (agByDate[e.date] ||= []).push(e);
+  // 다음 주 일정: '이번 주 할 일' 바로 다음 한 주(월~금)만. 그 뒤는 등급도 없고 날짜도 바뀌어서 안 싣는다 (달력엔 있음)
+  // 평가 전은 버튼과 상관없이 항상 보임 (예고편). A·B·C·철회는 버튼을 따름
+  // 청약은 종목당 한 줄(그 주 첫날에) + 끝나는 날짜. 금~월 청약은 이번 주에도 다음 주에도 나옴
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => document.querySelectorAll('.tab').forEach(x => {
+    x.setAttribute('aria-selected', String(x === t)); document.getElementById(x.getAttribute('aria-controls')).hidden = x !== t; }));
+  if (!card && today.getDay() % 6 === 0) document.getElementById('ag-h').click();  // 주말: 이번 주는 끝났으니 다음 주부터
+
+  // 이번 주 성적표: 이번 주 월요일부터 오늘까지 상장한 A·B. 공모가에 받아 시초가에 팔았다면. 버튼과 무관
+  const wkMon = new Date(today); wkMon.setDate(wkMon.getDate() - (today.getDay() + 6) % 7);
+  const scored = items.map((it, idx) => ({ it, idx })).filter(({ it }) => ['A', 'B'].includes(it.grade) && it.price
+    && it.listing >= iso(wkMon) && it.listing <= todayIso).sort((a, b) => a.it.listing.localeCompare(b.it.listing));
+  const ret = it => it.ohlc && it.ohlc.o ? it.ohlc.o / it.price - 1 : null;
+  const pctS = r => (r >= 0 ? '+' : '') + Math.round(r * 100) + '%';
+  const done = scored.map(s => ret(s.it)).filter(r => r != null), wins = done.filter(r => r > 0).length;
+  document.getElementById('score').innerHTML = scored.length ? scored.map(({ it, idx }) => { const r = ret(it); return `
+    <button type="button" class="row" data-idx="${idx}"><span class="nm">${esc(it.name)}<small class="uw">${md(it.listing)} · ${won(it.price)} → ${r == null ? '시초가 대기' : won(it.ohlc.o)}</small></span>
+      ${r == null ? '' : `<span class="pl ${r > 0 ? 'win' : 'lose'}">${r > 0 ? '승' : '패'} ${pctS(r)}</span>`}${gradeBadge(it.grade, false)}</button>`; }).join('')
+    + (done.length ? `<div class="legend">${wins}승 ${done.length - wins}패 · 평균 ${pctS(done.reduce((a, b) => a + b, 0) / done.length)}</div>` : '')
+    : '<div class="empty">이번 주 상장한 A·B 없음</div>';
+  const agEnd = new Date(weekEnd); agEnd.setDate(agEnd.getDate() + 7);
+  const subSeen = new Set(), agByDate = {};
+  events.filter(e => e.date >= iso(weekEnd) && e.date < iso(agEnd)).forEach(e => {
+    if (e.type === '청약') { if (subSeen.has(e.idx)) return; subSeen.add(e.idx); }    (agByDate[e.date] ||= []).push(e);
   });
   const until = e => {
     const it = items[e.idx];
@@ -464,9 +495,9 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const upcoming = Object.keys(agByDate).sort();
   document.getElementById('agenda').innerHTML = upcoming.length ? upcoming.map(k => `
     <div class="agenda-day"><div class="date num">${md(k)}</div><div class="agenda-items">
-      ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}" data-g="${fkey(items[e.idx].grade)}"><i class="tag t-${e.type}">${e.type}</i>
+      ${agByDate[k].map(e => `<button type="button" class="row" data-idx="${e.idx}"${items[e.idx].grade ? ` data-g="${fkey(items[e.idx].grade)}"` : ''}>${tag(e)}
         <span class="nm">${esc(items[e.idx].name)}${until(e)}${items[e.idx].underwriter ? `<small class="uw">${esc(uwShort(items[e.idx].underwriter))}</small>` : ''}</span>${gradeBadge(items[e.idx].grade, false)}</button>`).join('')}
-    </div></div>`).join('') : '<div class="empty">예정된 일정 없음</div>';
+    </div></div>`).join('') : '<div class="empty">다음 주 일정 없음</div>';
 
   // 등급 필터: 꺼진 등급의 일정을 숨기고, 비게 된 날짜·목록은 안내문으로
   function applyFilter() {
@@ -474,7 +505,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     document.querySelectorAll('[data-g]').forEach(el => { el.hidden = off.has(el.dataset.g); });
     document.querySelectorAll('.agenda-day').forEach(d => { d.hidden = !d.querySelector('.row:not([hidden])'); });
     // C·평가 전까지 켜면 '할 일'이 아니라 그냥 일정 (청약할지 모르는 종목이 섞임)
-    if (!card) document.getElementById('week-h').textContent = wk + (off.has('C') && off.has('none') ? ' 할 일' : ' 일정');
+    if (!card) document.getElementById('week-h').textContent = off.has('C') && off.has('none') ? '이번 주 할 일' : '이번 주 일정';
     const msg = (id, sel, text) => {
       const box = document.getElementById(id);
       let m = box.querySelector('.filtered');
@@ -482,8 +513,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
       if (none && !m) box.insertAdjacentHTML('beforeend', `<div class="empty filtered">${text}</div>`);
       if (!none && m) m.remove();
     };
-    msg('week', '.todo', wk + ' 일정 없음');
-    msg('agenda', '.agenda-day', '예정된 일정 없음');
+    msg('week', '.todo', '이번 주 일정 없음');
+    msg('agenda', '.agenda-day', '다음 주 일정 없음');
   }
   document.querySelectorAll('.fbtn').forEach(b => b.onclick = () => {
     off.has(b.dataset.f) ? off.delete(b.dataset.f) : off.add(b.dataset.f);
