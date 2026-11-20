@@ -1509,6 +1509,12 @@
   "status": "확정",
   "name": "하나에어로다이내믹스",
   "no": "2334",
-  "source": "http://www.38.co.kr/html/fund/?o=v&no=2334"
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2334",
+  "ohlc": {
+   "o": 10130,
+   "h": 11300,
+   "l": 5660,
+   "c": 5670
+  }
  }
 }
