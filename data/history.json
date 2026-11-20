@@ -1485,5 +1485,30 @@
    "l": 12500,
    "c": 13270
   }
+ },
+ "2334": {
+  "demand_start": "2026-11-02",
+  "demand_end": "2026-11-06",
+  "sub_start": "2026-11-10",
+  "sub_end": "2026-11-11",
+  "pay": "2026-11-13",
+  "refund": "2026-11-13",
+  "listing": "2026-11-20",
+  "price": 5700.0,
+  "band_low": 4700.0,
+  "band_high": 5700.0,
+  "inst_ratio": 1051.38,
+  "lockup_pct": 4.16,
+  "retail_ratio": 1851.14,
+  "amount_mil": 25080.0,
+  "sector": "항공기용 부품 제조업",
+  "underwriter": "IBK투자증권",
+  "code": "271160",
+  "deposit_pct": 50.0,
+  "min_shares": 10,
+  "status": "확정",
+  "name": "하나에어로다이내믹스",
+  "no": "2334",
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2334"
  }
 }
