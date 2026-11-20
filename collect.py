@@ -480,9 +480,9 @@ def main():
         print("DART 누락 대조 실패:", e)
         warns = []
     warns += kind_warns
-    for r in recs.values() if filers else ():  # 등급 입력값 재확인: 공모가 확정 ~ 상장 전 종목만
+    for r in recs.values() if filers else ():  # 등급 입력값 재확인: 공모가 확정 ~ 상장 전날. 상장일엔 DART 회사명이 바뀌는 듯 못 찾음 (하나에어로 2026-11-20)
         if (r["price"] and r["inst_ratio"] is not None and "스팩" not in r["name"] and r["status"] != "철회"
-                and (r["listing"] or "9") >= today.isoformat()):
+                and (r["listing"] or "9") > today.isoformat()):
             try:
                 w = dart_inputs(r, filers)
             except Exception as e:  # 공시 내려받기 실패 등
