@@ -109,4 +109,10 @@ rs = {"1": {"name": "가나다", "listing": None, "status": "확정"}, "2": {"na
 w = collect.kind_check(rs, kl, "2026-11-17")
 assert [r["listing"] for r in rs.values()] == ["2026-12-22", "2026-12-22", "2026-12-22", "2026-12-01"], rs
 assert len(w) == 1 and "2026-12-21" in w[0], w
+# 거래소 약칭: 앞부분 일치 + 중복 없을 때만
+kl2 = {"하나에어로": "2026-11-20", "에이": "2026-12-01"}
+names = {"하나에어로다이내믹스", "에이비씨", "에이디이"}
+assert collect.kind_key("하나에어로다이내믹스", kl2, names) == "하나에어로"
+assert collect.kind_key("에이비씨", kl2, names) is None  # '에이' 로 시작하는 38 종목이 둘
+assert collect.kind_key("딴회사", kl2, names) is None
 print("kind ok")

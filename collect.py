@@ -124,7 +124,7 @@ def history(year):
     from backtest import listed_rows  # backtest 가 collect 를 import 하므로 여기서
     path = os.path.join(DATA, "history.json")
     cache = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
-    today = dt.date.today().isoformat()
+    done = (dt.datetime.now(dt.timezone(dt.timedelta(hours=9))) - dt.timedelta(hours=16)).date().isoformat()  # 봉이 끝난 마지막 날
     for page in range(1, 20):
         rows = listed_rows(page)
         for row in rows:
@@ -134,8 +134,8 @@ def history(year):
             time.sleep(0.5)
             rec.update(name=row["name"], no=row["no"], source=f"{BASE}/html/fund/?o=v&no={row['no']}",
                        listing=rec["listing"] or row["listed"].replace("/", "-"))
-            # 상장 당일 봉은 장중이라 미완성 -> 다음 실행에 다시 받음
-            if rec["listing"] < today:
+            # 장중 봉은 미완성 -> 받지 않음. 한국시각 16시(장 마감 15:30 + 여유) 지나면 당일 봉도 받음
+            if rec["listing"] <= done:
                 rec["ohlc"] = rec["code"] and ohlc(rec["code"], rec["listing"])
                 if not rec["ohlc"]:  # 38 종목코드가 상장 전 임시값(9xxxxx)인 경우가 있음 -> 이름으로 실제 코드
                     rec["code"] = naver_code(row["name"]) or rec["code"]
@@ -335,11 +335,21 @@ def kind_listing(html=None):
     return out
 
 
+def kind_key(name, kl, names):
+    """38 이름 -> 거래소 목록 키. 거래소는 긴 이름을 줄여 씀 (하나에어로다이내믹스 -> 하나에어로, 2026-11-20).
+    앞부분 일치는 후보가 하나이고, 그 약칭으로 시작하는 38 종목도 하나일 때만."""
+    n = norm(name)
+    if n in kl:
+        return n
+    c = [k for k in kl if n.startswith(k)]
+    return c[0] if len(c) == 1 and sum(m.startswith(c[0]) for m in names) == 1 else None
+
+
 def kind_check(recs, kl, today):
     """38 상장일을 거래소 값과 맞춤. 38 이 비었으면 채우고, 다르면 거래소 값으로 덮고 경고. 상장일이 틀리면 08:45 매도 알림이 엉뚱한 날 감."""
-    out = []
+    out, names = [], {norm(r["name"]) for r in recs.values()}
     for r in recs.values():
-        k = kl.get(norm(r["name"]))
+        k = kl.get(kind_key(r["name"], kl, names))
         if not k or k == r["listing"] or r["status"] == "철회" or max(k, r["listing"] or "") < today:
             continue
         if r["listing"]:
