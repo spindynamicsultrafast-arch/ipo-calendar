@@ -189,7 +189,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
   html, body { font-size: 14px; }
   .todo .what { font-size: 1.15rem; }
   /* 부모님용 가독성: 제목은 그대로, 작은 회색 글씨만 바닥을 올림 (~13px 이상) */
-  .todo .what small, .sub, .legend, footer { font-size: 0.95rem; }
+  .todo .what small, .sub, .legend { font-size: 0.95rem; }
   .todo .when small, .row .uw { font-size: 0.9rem; }
   .todo .what small { font-weight: 500; }
 }
@@ -218,7 +218,6 @@ dt { color: var(--muted); white-space: nowrap; }
 dd { margin: 0; min-width: 0; }
 .src { font-size: 0.85rem; color: var(--muted); }
 .src a { color: var(--accent); }
-footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
 
 @media (max-width: 640px) {
   h1 { font-size: 1.4rem; }
@@ -232,7 +231,6 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .fold #sc-h { display: none; }
   .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
   .day { min-height: 64px; }
-  .day:not(:has(.chip:not([hidden]))) { min-height: 36px; }  /* 일정 없는 주는 납작하게 (한 칸이라도 있으면 그 줄은 64px) */
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
   .chip.t-상장 { height: 8px; }
   .chip b { display: none; }
@@ -242,7 +240,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .todo .when small { display: inline; margin-left: 4px; }
 }
 .cday { margin: 8px 0 0; font-size: 1.05rem; }
-.card .split, .card footer, .card .tabs, .card .filter, .card .sub { display: none !important; }
+.card .split, .card .tabs, .card .filter, .card .sub { display: none !important; }
 .card .wrap { padding-bottom: 20px; max-width: 420px; margin: 0; }  /* 사진 폭 고정 (헤드리스 크롬 창은 500px 미만이 안 됨) */
 @media (prefers-reduced-motion: no-preference) { .todo, .row { transition: border-color 0.15s; } }
 </style>
@@ -311,9 +309,6 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   </div>
   </div>
 
-  <footer>
-    <span>등급 승률·수익: 2023.5~ 265종목, 시초가 기준 중간값 · 출처 38커뮤니케이션·DART · 투자 판단은 본인 몫</span>
-  </footer>
 </div>
 
 
