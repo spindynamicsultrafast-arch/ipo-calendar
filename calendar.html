@@ -149,13 +149,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
 .sc-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sc-nav button { background: none; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 2px 16px; font-size: 1.2rem; cursor: pointer; }
 .sc-nav button:disabled { opacity: 0.3; cursor: default; }
-.sc-mid { display: flex; align-items: center; gap: 8px; }
+.sc-mid { position: relative; }  /* 제목은 가운데 고정, ↺ 버튼은 제목 오른쪽에 떠 있음 (제목을 밀지 않게) */
 .sc-mid h2 { font-size: 1rem; margin: 0; }
-.sc-nav .sc-now { font-size: 0.85rem; padding: 2px 4px; color: var(--muted); border: none; }  /* 튀지 않게: 테두리 없는 회색 글자 */
-.sc-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; align-items: start; overflow-x: auto;
-  scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
-.sc-track::-webkit-scrollbar { display: none; }
-.sc-card { scroll-snap-align: start; display: grid; gap: 6px; min-width: 0; }
+.sc-nav .sc-now { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 6px; white-space: nowrap;
+  font-size: 0.85rem; padding: 2px 4px; color: var(--muted); border: none; }  /* 튀지 않게: 테두리 없는 회색 글자 */
+.sc-card { display: grid; gap: 6px; min-width: 0; }
 .sc-total { display: grid; gap: 4px; }
 .sc-total b { color: var(--fg); font-size: 1.15rem; }
 
@@ -301,7 +299,7 @@ dd { margin: 0; min-width: 0; }
       <span class="sc-mid"><b id="sc-t" aria-live="polite"></b><button type="button" id="sc-now" class="sc-now" hidden>↺ 이번 주</button></span>
       <button type="button" id="sc-next" aria-label="다음 주">›</button>
     </div>
-    <div class="sc-track" id="score"></div>
+    <div id="score"></div>
   </section>
   </details>
   </div>
@@ -466,17 +464,20 @@ dd { margin: 0; min-width: 0; }
     document.getElementById('next').disabled = !months.some(x => x > cur);
     document.getElementById('cal-now').hidden = cur === cur0;
   }
-  document.getElementById('prev').onclick = () => { cur = [...months].reverse().find(x => x < cur) || cur; drawMonth(); };
-  document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
-  document.getElementById('cal-now').onclick = () => { cur = cur0; drawMonth(); };
-  // 달력 옆으로 밀기 = 이전/다음 달 (가로로 50px 넘게, 세로보다 많이 움직였을 때만: 스크롤과 안 헷갈리게)
-  let tx = null, ty = 0;
-  grid.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
-  grid.addEventListener('touchend', e => {
-    if (tx == null) return;
-    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; tx = null;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) document.getElementById(dx > 0 ? 'prev' : 'next').click();
-  });
+  // 달력·성적표 공통: 옆으로 밀면 이전/다음 (가로로 50px 넘게, 세로보다 많이 움직였을 때만: 스크롤과 안 헷갈리게)
+  // 바뀔 때 새 내용이 미는 방향에서 살짝 들어옴. 이번 달/주로 점프도 한 번에 (중간 건 안 지나감)
+  const swipe = (el, prev, next) => { let x = null, y = 0;
+    el.addEventListener('touchstart', e => { x = e.touches[0].clientX; y = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchend', e => { if (x == null) return;
+      const dx = e.changedTouches[0].clientX - x, dy = e.changedTouches[0].clientY - y; x = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx > 0 ? prev : next).click(); }); };
+  const slideIn = (el, dir) => { if (dir && el.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+    el.animate([{ transform: `translateX(${dir * 32}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 180, easing: 'ease-out' }); };
+  const goMonth = m => { const dir = Math.sign(m.localeCompare(cur)); cur = m; drawMonth(); slideIn(grid, dir); };
+  document.getElementById('prev').onclick = () => goMonth([...months].reverse().find(x => x < cur) || cur);
+  document.getElementById('next').onclick = () => goMonth(months.find(x => x > cur) || cur);
+  document.getElementById('cal-now').onclick = () => goMonth(cur0);
+  swipe(grid, document.getElementById('prev'), document.getElementById('next'));
   drawMonth();
 
   // 다음 주 일정: '이번 주 일정' 바로 다음 한 주(월~금)만. 그 뒤는 등급도 없고 날짜도 바뀌어서 안 싣는다 (달력엔 있음)
@@ -509,18 +510,14 @@ dd { margin: 0; min-width: 0; }
   if (ab.length) scCards.unshift(`<div class="sc-card" data-t="누적"><div class="empty sc-total">${mdS(parse(ab[0].it.listing))}부터 A·B ${ab.length}종목<b>${tally(ab)}</b></div></div>`);
   const track = document.getElementById('score'), scT = document.getElementById('sc-t');
   const scPrev = document.getElementById('sc-prev'), scNext = document.getElementById('sc-next');
-  track.innerHTML = scCards.join('');
-  const scAt = () => Math.round(track.scrollLeft / (track.clientWidth || 1));
-  const scSync = () => { const i = Math.min(scAt(), scCards.length - 1);
-    track.style.height = track.children[i].offsetHeight + 'px';  // 가장 긴 카드에 맞춰 늘어나지 않게
-    scT.textContent = track.children[i].dataset.t; scPrev.disabled = i === 0; scNext.disabled = i === scCards.length - 1; scNow.hidden = scNext.disabled; };
-  const scGo = i => track.scrollTo({ left: i * track.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  const scNow = document.getElementById('sc-now');
-  scPrev.onclick = () => scGo(scAt() - 1); scNext.onclick = () => scGo(scAt() + 1); scNow.onclick = () => scGo(scCards.length - 1);
-  track.addEventListener('scroll', scSync, { passive: true });
-  const scEnd = () => { track.scrollLeft = track.scrollWidth; scSync(); };  // 접혀 있으면 폭 0 이라 펼칠 때 다시
-  track.closest('details').addEventListener('toggle', e => { if (e.target.open) scEnd(); });
-  scEnd();
+  const scNow = document.getElementById('sc-now'), last = scCards.length - 1;
+  let scI = last;
+  const scGo = i => { if (i < 0 || i > last) return; const dir = Math.sign(i - scI); scI = i;
+    track.innerHTML = scCards[i]; scT.textContent = track.firstElementChild.dataset.t;
+    scPrev.disabled = i === 0; scNext.disabled = scNow.hidden = i === last; slideIn(track, dir); };
+  scPrev.onclick = () => scGo(scI - 1); scNext.onclick = () => scGo(scI + 1); scNow.onclick = () => scGo(last);
+  swipe(track, scPrev, scNext);
+  scGo(last);
   const agEnd = new Date(weekEnd); agEnd.setDate(agEnd.getDate() + 7);
   const subSeen = new Set(), agByDate = {};
   events.filter(e => e.date >= iso(weekEnd) && e.date < iso(agEnd)).forEach(e => {
