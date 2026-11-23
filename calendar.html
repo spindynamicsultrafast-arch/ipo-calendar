@@ -105,10 +105,6 @@ button { font: inherit; color: inherit; }
 .legend .grade { min-width: 1.8em; height: 1.8em; font-size: 0.85rem; }
 
 /* 달력 */
-.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.nav { display: flex; gap: 6px; }
-.nav button { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-.nav button:disabled { opacity: 0.4; cursor: default; }
 .cal { overflow-x: auto; }
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--line); gap: 1px; }
 .dow { background: var(--surface); text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--muted); padding: 8px 0; }
@@ -154,7 +150,8 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
 .sc-nav button { background: none; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 2px 16px; font-size: 1.2rem; cursor: pointer; }
 .sc-nav button:disabled { opacity: 0.3; cursor: default; }
 .sc-mid { display: flex; align-items: center; gap: 8px; }
-.sc-nav .sc-now { font-size: 0.85rem; padding: 2px 8px; color: var(--accent); border-color: var(--accent); }
+.sc-mid h2 { font-size: 1rem; margin: 0; }
+.sc-nav .sc-now { font-size: 0.85rem; padding: 2px 4px; color: var(--muted); border: none; }  /* 튀지 않게: 테두리 없는 회색 글자 */
 .sc-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; align-items: start; overflow-x: auto;
   scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
 .sc-track::-webkit-scrollbar { display: none; }
@@ -234,6 +231,8 @@ dd { margin: 0; min-width: 0; }
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
   .chip.t-상장 { height: 8px; }
   .chip b { display: none; }
+  .chip { pointer-events: none; }  /* 막대가 너무 작아 칸 전체를 누르게: 그날 일정 목록이 시트로 */
+  .day:has(.chip[data-idx]:not([hidden])) { cursor: pointer; }
   .todo { grid-template-columns: 1fr auto; }
   .todo { row-gap: 2px; }
   .todo .when { grid-column: 1 / -1; width: auto; font-size: 0.95rem; color: var(--muted); }
@@ -276,12 +275,10 @@ dd { margin: 0; min-width: 0; }
   <div class="split">
   <details class="fold" open><summary>달력</summary>
   <section aria-labelledby="cal-h" style="display:grid;gap:12px;min-width:0">
-    <div class="cal-head">
-      <h2 id="cal-h"></h2>
-      <div class="nav">
-        <button type="button" id="prev" aria-label="이전 달">이전 달</button>
-        <button type="button" id="next" aria-label="다음 달">다음 달</button>
-      </div>
+    <div class="sc-nav">
+      <button type="button" id="prev" aria-label="이전 달">‹</button>
+      <span class="sc-mid"><h2 id="cal-h"></h2><button type="button" id="cal-now" class="sc-now" hidden>↺ 이번 달</button></span>
+      <button type="button" id="next" aria-label="다음 달">›</button>
     </div>
     <div class="cal"><div class="grid" id="grid"></div></div>
     <div class="legend">
@@ -300,7 +297,7 @@ dd { margin: 0; min-width: 0; }
     <h2 id="sc-h">성적표</h2>
     <div class="sc-nav">
       <button type="button" id="sc-prev" aria-label="지난 주">‹</button>
-      <span class="sc-mid"><b id="sc-t" aria-live="polite"></b><button type="button" id="sc-now" class="sc-now" hidden>이번 주로</button></span>
+      <span class="sc-mid"><b id="sc-t" aria-live="polite"></b><button type="button" id="sc-now" class="sc-now" hidden>↺ 이번 주</button></span>
       <button type="button" id="sc-next" aria-label="다음 주">›</button>
     </div>
     <div class="sc-track" id="score"></div>
@@ -430,7 +427,7 @@ dd { margin: 0; min-width: 0; }
   // 월 달력
   const months = [...new Set(events.map(e => e.date.slice(0, 7)))].sort();
   let cur = months.includes(todayIso.slice(0, 7)) ? todayIso.slice(0, 7) : (months.find(m => m >= todayIso.slice(0, 7)) || months[0] || todayIso.slice(0, 7));
-  const grid = document.getElementById('grid');
+  const cur0 = cur, grid = document.getElementById('grid');
   function drawMonth() {
     const [y, m] = cur.split('-').map(Number);
     document.getElementById('cal-h').textContent = `${y}년 ${m}월`;
@@ -458,7 +455,7 @@ dd { margin: 0; min-width: 0; }
         const k = iso(d);
         const cls = ['day', d.getDay() % 6 ? '' : 'weekend', d.getMonth() !== m - 1 ? 'out' : '', k === todayIso ? 'today' : ''].join(' ');
         const chips = Array.from(slots[c], x => x || '<span class="chip gap" aria-hidden="true">&nbsp;</span>').join('');
-        html += `<div class="${cls}"><span class="d num">${d.getDate()}</span>${chips}</div>`;
+        html += `<div class="${cls}" data-k="${k}"><span class="d num">${d.getDate()}</span>${chips}</div>`;
       });
     }
     grid.innerHTML = html;
@@ -466,9 +463,19 @@ dd { margin: 0; min-width: 0; }
     markSel();
     document.getElementById('prev').disabled = !months.some(x => x < cur);
     document.getElementById('next').disabled = !months.some(x => x > cur);
+    document.getElementById('cal-now').hidden = cur === cur0;
   }
   document.getElementById('prev').onclick = () => { cur = [...months].reverse().find(x => x < cur) || cur; drawMonth(); };
   document.getElementById('next').onclick = () => { cur = months.find(x => x > cur) || cur; drawMonth(); };
+  document.getElementById('cal-now').onclick = () => { cur = cur0; drawMonth(); };
+  // 달력 옆으로 밀기 = 이전/다음 달 (가로로 50px 넘게, 세로보다 많이 움직였을 때만: 스크롤과 안 헷갈리게)
+  let tx = null, ty = 0;
+  grid.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  grid.addEventListener('touchend', e => {
+    if (tx == null) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; tx = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) document.getElementById(dx > 0 ? 'prev' : 'next').click();
+  });
   drawMonth();
 
   // 다음 주 일정: '이번 주 일정' 바로 다음 한 주(월~금)만. 그 뒤는 등급도 없고 날짜도 바뀌어서 안 싣는다 (달력엔 있음)
@@ -591,8 +598,19 @@ dd { margin: 0; min-width: 0; }
     // 상장일이 다른 달이면 청약 달 그대로 두고 강조만. 패널은 맨 위로.
     body.scrollTop = 0;
   }
+  // 폰: 날짜 칸을 누르면 그날 일정 목록 (막대엔 글자가 안 보여서). 목록에서 종목 누르면 상세로
+  function openDay(k) {
+    const list = (byDate[k] || []).filter(e => !off.has(fkey(items[e.idx].grade)));
+    if (!list.length) return;
+    body.innerHTML = `<div class="dlg-head"><h2 id="dlg-name">${md(k)}</h2><button type="button" class="close" id="dlg-close">닫기</button></div>
+      <div class="week-list">${list.map(e => todoHtml(e, true)).join('')}</div>`;
+    document.getElementById('dlg-close').onclick = closeDetail;
+    sel = null; body.hidden = scrim.hidden = false; lock(true); markSel(); body.scrollTop = 0;
+  }
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-idx]');
+    const day = !b && matchMedia('(max-width: 640px)').matches && e.target.closest('.day[data-k]');
+    if (day) return openDay(day.dataset.k);
     if (!b) return;
     const idx = Number(b.dataset.idx);
     idx === sel ? closeDetail() : open(idx);  // 같은 종목 다시 누르면 닫힘
