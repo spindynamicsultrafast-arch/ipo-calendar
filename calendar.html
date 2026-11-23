@@ -153,6 +153,8 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
 .sc-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sc-nav button { background: none; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 2px 16px; font-size: 1.2rem; cursor: pointer; }
 .sc-nav button:disabled { opacity: 0.3; cursor: default; }
+.sc-mid { display: flex; align-items: center; gap: 8px; }
+.sc-nav .sc-now { font-size: 0.85rem; padding: 2px 8px; color: var(--accent); border-color: var(--accent); }
 .sc-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; align-items: start; overflow-x: auto;
   scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
 .sc-track::-webkit-scrollbar { display: none; }
@@ -299,7 +301,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     <h2 id="sc-h">성적표</h2>
     <div class="sc-nav">
       <button type="button" id="sc-prev" aria-label="지난 주">‹</button>
-      <b id="sc-t" aria-live="polite"></b>
+      <span class="sc-mid"><b id="sc-t" aria-live="polite"></b><button type="button" id="sc-now" class="sc-now" hidden>이번 주로</button></span>
       <button type="button" id="sc-next" aria-label="다음 주">›</button>
     </div>
     <div class="sc-track" id="score"></div>
@@ -507,9 +509,10 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const scAt = () => Math.round(track.scrollLeft / (track.clientWidth || 1));
   const scSync = () => { const i = Math.min(scAt(), scCards.length - 1);
     track.style.height = track.children[i].offsetHeight + 'px';  // 가장 긴 카드에 맞춰 늘어나지 않게
-    scT.textContent = track.children[i].dataset.t; scPrev.disabled = i === 0; scNext.disabled = i === scCards.length - 1; };
+    scT.textContent = track.children[i].dataset.t; scPrev.disabled = i === 0; scNext.disabled = i === scCards.length - 1; scNow.hidden = scNext.disabled; };
   const scGo = i => track.scrollTo({ left: i * track.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  scPrev.onclick = () => scGo(scAt() - 1); scNext.onclick = () => scGo(scAt() + 1);
+  const scNow = document.getElementById('sc-now');
+  scPrev.onclick = () => scGo(scAt() - 1); scNext.onclick = () => scGo(scAt() + 1); scNow.onclick = () => scGo(scCards.length - 1);
   track.addEventListener('scroll', scSync, { passive: true });
   const scEnd = () => { track.scrollLeft = track.scrollWidth; scSync(); };  // 접혀 있으면 폭 0 이라 펼칠 때 다시
   track.closest('details').addEventListener('toggle', e => { if (e.target.open) scEnd(); });
