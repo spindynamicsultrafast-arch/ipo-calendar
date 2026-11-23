@@ -232,6 +232,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .fold #sc-h { display: none; }
   .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
   .day { min-height: 64px; }
+  .day:not(:has(.chip:not([hidden]))) { min-height: 36px; }  /* 일정 없는 주는 납작하게 (한 칸이라도 있으면 그 줄은 64px) */
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
   .chip.t-상장 { height: 8px; }
   .chip b { display: none; }
@@ -311,8 +312,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   </div>
 
   <footer>
-    <span>등급: 기관 경쟁률·공모가 위치·확약 비율로 매김. 승률·수익은 2023년 5월 이후 265종목, 상장 첫날 시초가 기준(수익은 중간값).</span>
-    <span>일정 출처: 38커뮤니케이션 · DART 대조. 투자 판단은 본인 몫입니다.</span>
+    <span>등급 승률·수익: 2023.5~ 265종목, 시초가 기준 중간값 · 출처 38커뮤니케이션·DART · 투자 판단은 본인 몫</span>
   </footer>
 </div>
 
@@ -493,7 +493,8 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   const ret = it => it.ohlc && it.ohlc.o ? it.ohlc.o / it.price - 1 : null;
   const pctS = r => (r >= 0 ? '+' : '') + Math.round(r * 100) + '%';
   const tally = list => { const done = list.map(s => ret(s.it)).filter(r => r != null), wins = done.filter(r => r > 0).length;
-    return done.length ? `${wins}승 ${done.length - wins}패 · 평균 ${pctS(done.reduce((a, b) => a + b, 0) / done.length)}` : ''; };
+    const s = [...done].sort((a, b) => a - b), n = s.length, med = n % 2 ? s[n >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2;  // 평균은 대박 몇 개에 끌려감
+    return n ? `${wins}승 ${n - wins}패 · 중간값 ${pctS(med)}` : ''; };
   const rowHtml = ({ it, idx }) => { const r = ret(it); return `
     <button type="button" class="row" data-idx="${idx}"><span class="nm">${esc(it.name)}<small class="uw">${md(it.listing)} · ${won(it.price)} → ${r == null ? '시초가 대기' : won(it.ohlc.o)}</small></span>
       ${r == null ? '' : `<span class="pl ${r > 0 ? 'win' : 'lose'}">${r > 0 ? '승' : '패'} ${pctS(r)}</span>`}${gradeBadge(it.grade, false)}</button>`; };
