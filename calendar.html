@@ -225,7 +225,7 @@ dd { margin: 0; min-width: 0; }
   .fold[open] { padding-bottom: 20px; }  /* 내용과 다음 접기 줄 사이 여백 */
   .fold #sc-h { display: none; }
   .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
-  .day { min-height: 64px; }
+  .day { height: 78px; min-height: 0; overflow: hidden; }  /* 고정 높이: 달 바꿔도 달력 크기 그대로 (막대 4줄까지, 넘으면 잘림) */
   .chip { font-size: 0; padding: 0; height: 8px; border-radius: 4px; }
   .chip.t-상장 { height: 8px; }
   .chip b { display: none; }
@@ -426,6 +426,8 @@ dd { margin: 0; min-width: 0; }
   // 월 달력
   const months = [...new Set(events.map(e => e.date.slice(0, 7)))].sort();
   let cur = months.includes(todayIso.slice(0, 7)) ? todayIso.slice(0, 7) : (months.find(m => m >= todayIso.slice(0, 7)) || months[0] || todayIso.slice(0, 7));
+  // 오늘이 5줄 밖(6번째 줄, 예: 30·31일)이면 다음 달을 '이번 달'로: 그 달 첫 줄에 오늘이 있음
+  if (cur === todayIso.slice(0, 7) && today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay() > 35) cur = months.find(m => m > cur) || cur;
   const cur0 = cur, grid = document.getElementById('grid');
   function drawMonth() {
     const [y, m] = cur.split('-').map(Number);
@@ -439,9 +441,8 @@ dd { margin: 0; min-width: 0; }
       const rest = e.joinL ? ' tabindex="-1" aria-hidden="true"' : '';
       return `<button type="button" class="chip t-${tcls(e)}${join}" data-idx="${e.idx}" data-g="${fkey(it.grade)}" title="${label(e)} · ${esc(it.name)}"${rest}><b>${label(e)[0]}</b>${esc(it.name)}${it.grade ? `<span class="gr">${it.grade}</span>` : ''}</button>`;
     };
-    for (let w = 0; w < 6; w++) {
+    for (let w = 0; w < 5; w++) {  // 늘 5줄: 6번째 줄 날짜는 다음 달 첫 줄에 (흐리게) 나옴
       const days = Array.from({ length: 7 }, (_, c) => { const d = new Date(start); d.setDate(start.getDate() + w * 7 + c); return d; });
-      if (w === 5 && days[0].getMonth() !== m - 1) break;
       // 주 단위로 줄(slot) 배정: 상장 > 청약 > 환불 순으로 위 줄. 이틀 청약은 같은 줄을 유지해 막대가 어긋나지 않게.
       const runs = {};
       days.forEach((d, c) => (byDate[iso(d)] || []).forEach(e => {
