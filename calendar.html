@@ -238,6 +238,7 @@ dd { margin: 0; min-width: 0; }
   .todo .when { grid-column: 1 / -1; width: auto; font-size: 0.95rem; color: var(--muted); }
   .todo .when small { display: inline; margin-left: 4px; }
 }
+.day-list .when { display: none; }  /* 날짜 시트: 제목에 날짜 있음 */
 .cday { margin: 8px 0 0; font-size: 1.05rem; }
 .card .split, .card .tabs, .card .filter, .card .sub { display: none !important; }
 .card .wrap { padding-bottom: 20px; max-width: 420px; margin: 0; }  /* 사진 폭 고정 (헤드리스 크롬 창은 500px 미만이 안 됨) */
@@ -603,7 +604,7 @@ dd { margin: 0; min-width: 0; }
     const list = (byDate[k] || []).filter(e => !off.has(fkey(items[e.idx].grade)));
     if (!list.length) return;
     body.innerHTML = `<div class="dlg-head"><h2 id="dlg-name">${md(k)}</h2><button type="button" class="close" id="dlg-close">닫기</button></div>
-      <div class="week-list">${list.map(e => todoHtml(e, true)).join('')}</div>`;
+      <div class="week-list day-list">${list.map(e => todoHtml(e, true)).join('')}</div>`;
     document.getElementById('dlg-close').onclick = closeDetail;
     sel = null; body.hidden = scrim.hidden = false; lock(true); markSel(); body.scrollTop = 0;
   }
