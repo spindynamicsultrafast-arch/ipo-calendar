@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "47 11 * * *"  # 매일 20:47 KST 한 번 (정각은 GitHub 이 몰려 몇 시간 밀림): 낮에 나온 결과를 다음 날 07:30 카톡 전에 받아 둠 (밀려도 새벽엔 끝남)
   workflow_dispatch:
+  push:  # 화면 고치고 푸시하면 바로 배포. 봇의 "update" 푸시는 GITHUB_TOKEN 이라 다시 안 돌림 (루프 없음)
+    branches: [main]
+    paths: [calendar.html]
 permissions:
   contents: write
   pages: write
