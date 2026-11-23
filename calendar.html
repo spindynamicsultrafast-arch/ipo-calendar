@@ -149,6 +149,16 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }  /* 안드로�
 .row .nm { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .uw { display: block; font-size: 0.8rem; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .row .grade { min-width: 1.9em; height: 1.9em; font-size: 0.9rem; }
+/* 성적표: 주별 카드 옆으로 넘기기 (scroll-snap) */
+.sc-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sc-nav button { background: none; color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 2px 16px; font-size: 1.2rem; cursor: pointer; }
+.sc-nav button:disabled { opacity: 0.3; cursor: default; }
+.sc-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; align-items: start; overflow-x: auto;
+  scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+.sc-track::-webkit-scrollbar { display: none; }
+.sc-card { scroll-snap-align: start; display: grid; gap: 6px; min-width: 0; }
+.sc-total { display: grid; gap: 4px; }
+.sc-total b { color: var(--fg); font-size: 1.15rem; }
 
 /* 달력 + 일정 나란히 (넓은 화면), 좁으면 위아래 */
 .split { display: grid; gap: 28px; }
@@ -216,6 +226,7 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   .fold { border-top: 1px solid var(--line); }
   .fold > summary { display: list-item; font-size: 1.15rem; font-weight: 700; padding: 14px 0; cursor: pointer; }
   .fold[open] > summary { padding-bottom: 8px; }
+  .fold[open] { padding-bottom: 20px; }  /* 내용과 다음 접기 줄 사이 여백 */
   .fold #sc-h { display: none; }
   .fbtn { padding: 3px 8px 3px 4px; font-size: 0.9rem; }
   .day { min-height: 64px; }
@@ -283,10 +294,15 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
   <div class="side">
   <div class="scrim" id="scrim" hidden></div>
   <aside class="detail dlg" id="detail" aria-live="polite" aria-labelledby="dlg-name" hidden></aside>
-  <details class="fold" open><summary>이번 주 성적표</summary>
+  <details class="fold" open><summary>성적표</summary>
   <section class="agenda" aria-labelledby="sc-h">
-    <h2 id="sc-h">이번 주 성적표</h2>
-    <div class="agenda-items" id="score"></div>
+    <h2 id="sc-h">성적표</h2>
+    <div class="sc-nav">
+      <button type="button" id="sc-prev" aria-label="지난 주">‹</button>
+      <b id="sc-t" aria-live="polite"></b>
+      <button type="button" id="sc-next" aria-label="다음 주">›</button>
+    </div>
+    <div class="sc-track" id="score"></div>
   </section>
   </details>
   </div>
@@ -465,18 +481,39 @@ footer { color: var(--muted); font-size: 0.85rem; display: grid; gap: 4px; }
     x.setAttribute('aria-selected', String(x === t)); document.getElementById(x.getAttribute('aria-controls')).hidden = x !== t; }));
   if (!card && today.getDay() % 6 === 0) document.getElementById('ag-h').click();  // 주말: 이번 주는 끝났으니 다음 주부터
 
-  // 이번 주 성적표: 이번 주 월요일부터 오늘까지 상장한 A·B. 공모가에 받아 시초가에 팔았다면. 버튼과 무관
-  const wkMon = new Date(today); wkMon.setDate(wkMon.getDate() - (today.getDay() + 6) % 7);
-  const scored = items.map((it, idx) => ({ it, idx })).filter(({ it }) => ['A', 'B'].includes(it.grade) && it.price
-    && it.listing >= iso(wkMon) && it.listing <= todayIso).sort((a, b) => a.it.listing.localeCompare(b.it.listing));
+  // 성적표: 오늘까지 상장한 A·B 를 주(월~금)별 카드로. 공모가에 받아 시초가에 팔았다면. 버튼과 무관
+  // 옆으로 넘김: 왼쪽이 과거, 처음엔 맨 오른쪽(이번 주). 맨 왼쪽은 누적. 상장 없던 주는 건너뜀
+  const monOf = s => { const d = parse(s); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return iso(d); };
+  const mdS = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  const wkMonIso = monOf(todayIso);
+  const ab = items.map((it, idx) => ({ it, idx })).filter(({ it }) => ['A', 'B'].includes(it.grade) && it.price
+    && it.listing && it.listing <= todayIso).sort((a, b) => a.it.listing.localeCompare(b.it.listing));
   const ret = it => it.ohlc && it.ohlc.o ? it.ohlc.o / it.price - 1 : null;
   const pctS = r => (r >= 0 ? '+' : '') + Math.round(r * 100) + '%';
-  const done = scored.map(s => ret(s.it)).filter(r => r != null), wins = done.filter(r => r > 0).length;
-  document.getElementById('score').innerHTML = scored.length ? scored.map(({ it, idx }) => { const r = ret(it); return `
+  const tally = list => { const done = list.map(s => ret(s.it)).filter(r => r != null), wins = done.filter(r => r > 0).length;
+    return done.length ? `${wins}승 ${done.length - wins}패 · 평균 ${pctS(done.reduce((a, b) => a + b, 0) / done.length)}` : ''; };
+  const rowHtml = ({ it, idx }) => { const r = ret(it); return `
     <button type="button" class="row" data-idx="${idx}"><span class="nm">${esc(it.name)}<small class="uw">${md(it.listing)} · ${won(it.price)} → ${r == null ? '시초가 대기' : won(it.ohlc.o)}</small></span>
-      ${r == null ? '' : `<span class="pl ${r > 0 ? 'win' : 'lose'}">${r > 0 ? '승' : '패'} ${pctS(r)}</span>`}${gradeBadge(it.grade, false)}</button>`; }).join('')
-    + (done.length ? `<div class="legend">${wins}승 ${done.length - wins}패 · 평균 ${pctS(done.reduce((a, b) => a + b, 0) / done.length)}</div>` : '')
-    : '<div class="empty">이번 주 상장한 A·B 없음</div>';
+      ${r == null ? '' : `<span class="pl ${r > 0 ? 'win' : 'lose'}">${r > 0 ? '승' : '패'} ${pctS(r)}</span>`}${gradeBadge(it.grade, false)}</button>`; };
+  const weeks = { [wkMonIso]: [] };  // 이번 주는 비어도 카드
+  ab.forEach(s => (weeks[monOf(s.it.listing)] ||= []).push(s));
+  const scCards = Object.keys(weeks).sort().map(k => { const fri = parse(k); fri.setDate(fri.getDate() + 4); const t = tally(weeks[k]);
+    return `<div class="sc-card" data-t="${k === wkMonIso ? '이번 주' : `${mdS(parse(k))}~${mdS(fri)}`}">${weeks[k].length
+      ? weeks[k].map(rowHtml).join('') + (t ? `<div class="legend">${t}</div>` : '') : '<div class="empty">이번 주 상장한 A·B 없음</div>'}</div>`; });
+  if (ab.length) scCards.unshift(`<div class="sc-card" data-t="누적"><div class="empty sc-total">${mdS(parse(ab[0].it.listing))}부터 A·B ${ab.length}종목<b>${tally(ab)}</b></div></div>`);
+  const track = document.getElementById('score'), scT = document.getElementById('sc-t');
+  const scPrev = document.getElementById('sc-prev'), scNext = document.getElementById('sc-next');
+  track.innerHTML = scCards.join('');
+  const scAt = () => Math.round(track.scrollLeft / (track.clientWidth || 1));
+  const scSync = () => { const i = Math.min(scAt(), scCards.length - 1);
+    track.style.height = track.children[i].offsetHeight + 'px';  // 가장 긴 카드에 맞춰 늘어나지 않게
+    scT.textContent = track.children[i].dataset.t; scPrev.disabled = i === 0; scNext.disabled = i === scCards.length - 1; };
+  const scGo = i => track.scrollTo({ left: i * track.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  scPrev.onclick = () => scGo(scAt() - 1); scNext.onclick = () => scGo(scAt() + 1);
+  track.addEventListener('scroll', scSync, { passive: true });
+  const scEnd = () => { track.scrollLeft = track.scrollWidth; scSync(); };  // 접혀 있으면 폭 0 이라 펼칠 때 다시
+  track.closest('details').addEventListener('toggle', e => { if (e.target.open) scEnd(); });
+  scEnd();
   const agEnd = new Date(weekEnd); agEnd.setDate(agEnd.getDate() + 7);
   const subSeen = new Set(), agByDate = {};
   events.filter(e => e.date >= iso(weekEnd) && e.date < iso(agEnd)).forEach(e => {
