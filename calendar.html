@@ -466,11 +466,20 @@ dd { margin: 0; min-width: 0; }
   }
   // 달력·성적표 공통: 옆으로 밀면 이전/다음 (가로로 50px 넘게, 세로보다 많이 움직였을 때만: 스크롤과 안 헷갈리게)
   // 바뀔 때 새 내용이 미는 방향에서 살짝 들어옴. 이번 달/주로 점프도 한 번에 (중간 건 안 지나감)
-  const swipe = (el, prev, next) => { let x = null, y = 0;
-    el.addEventListener('touchstart', e => { x = e.touches[0].clientX; y = e.touches[0].clientY; }, { passive: true });
-    el.addEventListener('touchend', e => { if (x == null) return;
-      const dx = e.changedTouches[0].clientX - x, dy = e.changedTouches[0].clientY - y; x = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx > 0 ? prev : next).click(); }); };
+  // 손가락을 따라 끌려옴. 첫 8px 로 가로/세로 판정 (세로면 그냥 스크롤). 끝(더 없음)에선 1/4 만 끌림. 50px 넘게 끌고 놓으면 넘김, 아니면 제자리로
+  const swipe = (el, prev, next) => { let x = null, y = 0, dx = 0, horiz = null;
+    el.style.touchAction = 'pan-y'; el.parentElement.style.overflowX = 'clip';  // 끌린 내용이 가로 스크롤을 만들지 않게
+    el.addEventListener('touchstart', e => { x = e.touches[0].clientX; y = e.touches[0].clientY; dx = 0; horiz = null; el.style.transition = 'none'; }, { passive: true });
+    el.addEventListener('touchmove', e => { if (x == null) return;
+      const mx = e.touches[0].clientX - x, my = e.touches[0].clientY - y;
+      if (horiz == null && Math.abs(mx) + Math.abs(my) > 8) horiz = Math.abs(mx) > Math.abs(my);
+      if (!horiz) return;
+      dx = mx; el.style.transform = `translateX(${(dx > 0 ? prev : next).disabled ? dx / 4 : dx}px)`; }, { passive: true });
+    const end = () => { if (x == null) return; x = null;
+      const b = dx > 0 ? prev : next, go = horiz && Math.abs(dx) > 50 && !b.disabled;
+      el.style.transition = go ? 'none' : 'transform 0.18s ease-out'; el.style.transform = '';
+      if (go) b.click(); };
+    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end); };
   const slideIn = (el, dir) => { if (dir && el.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches)
     el.animate([{ transform: `translateX(${dir * 32}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 180, easing: 'ease-out' }); };
   const goMonth = m => { const dir = Math.sign(m.localeCompare(cur)); cur = m; drawMonth(); slideIn(grid, dir); };
@@ -483,8 +492,13 @@ dd { margin: 0; min-width: 0; }
   // 다음 주 일정: '이번 주 일정' 바로 다음 한 주(월~금)만. 그 뒤는 등급도 없고 날짜도 바뀌어서 안 싣는다 (달력엔 있음)
   // 평가 전은 버튼과 상관없이 항상 보임 (예고편). A·B·C·철회는 버튼을 따름
   // 청약은 종목당 한 줄(그 주 첫날에) + 끝나는 날짜. 금~월 청약은 이번 주에도 다음 주에도 나옴
-  document.querySelectorAll('.tab').forEach(t => t.onclick = () => document.querySelectorAll('.tab').forEach(x => {
-    x.setAttribute('aria-selected', String(x === t)); document.getElementById(x.getAttribute('aria-controls')).hidden = x !== t; }));
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+    const was = t.getAttribute('aria-selected') === 'true';
+    document.querySelectorAll('.tab').forEach(x => {
+      x.setAttribute('aria-selected', String(x === t)); document.getElementById(x.getAttribute('aria-controls')).hidden = x !== t; });
+    if (!was) slideIn(document.getElementById(t.getAttribute('aria-controls')), t.id === 'ag-h' ? 1 : -1); });
+  const weekH = document.getElementById('week-h'), agH = document.getElementById('ag-h'), END = { disabled: true };  // 양 끝: 더 갈 데 없음
+  swipe(document.getElementById('week'), END, agH); swipe(document.getElementById('agenda'), weekH, END);
   if (!card && today.getDay() % 6 === 0) document.getElementById('ag-h').click();  // 주말: 이번 주는 끝났으니 다음 주부터
 
   // 성적표: 오늘까지 상장한 A·B 를 주(월~금)별 카드로. 공모가에 받아 시초가에 팔았다면. 버튼과 무관
