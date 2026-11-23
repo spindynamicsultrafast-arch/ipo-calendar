@@ -23,7 +23,7 @@
   "name": "피지티",
   "no": "2363",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2363",
-  "fetched_at": "2026-11-24T00:39:00",
+  "fetched_at": "2026-11-24T01:10:28",
   "dart": "ok"
  },
  "2361": {
@@ -50,7 +50,7 @@
   "name": "이나인페이",
   "no": "2361",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2361",
-  "fetched_at": "2026-11-24T00:39:01",
+  "fetched_at": "2026-11-24T01:10:29",
   "dart": "ok"
  },
  "2341": {
@@ -77,7 +77,7 @@
   "name": "제논",
   "no": "2341",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2341",
-  "fetched_at": "2026-11-24T00:39:07",
+  "fetched_at": "2026-11-24T01:10:32",
   "dart": "ok"
  },
  "2360": {
@@ -104,7 +104,7 @@
   "name": "태석광학",
   "no": "2360",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2360",
-  "fetched_at": "2026-11-24T00:39:10",
+  "fetched_at": "2026-11-24T01:10:34",
   "dart": "ok"
  },
  "2362": {
@@ -131,7 +131,7 @@
   "name": "엠디에스코리아",
   "no": "2362",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2362",
-  "fetched_at": "2026-11-24T00:39:11",
+  "fetched_at": "2026-11-24T01:10:36",
   "dart": "ok"
  },
  "2355": {
@@ -158,7 +158,7 @@
   "name": "KTE",
   "no": "2355",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2355",
-  "fetched_at": "2026-11-24T00:39:13",
+  "fetched_at": "2026-11-24T01:10:37",
   "dart": "ok"
  },
  "2356": {
@@ -185,7 +185,7 @@
   "name": "데스틴파워",
   "no": "2356",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2356",
-  "fetched_at": "2026-11-24T00:39:16",
+  "fetched_at": "2026-11-24T01:10:39",
   "dart": "ok"
  },
  "2348": {
@@ -195,7 +195,7 @@
   "sub_end": "2026-12-11",
   "pay": "2026-12-15",
   "refund": "2026-12-15",
-  "listing": null,
+  "listing": "2026-12-22",
   "price": null,
   "band_low": 5400.0,
   "band_high": 6800.0,
@@ -212,7 +212,7 @@
   "name": "씨아이에스케미칼",
   "no": "2348",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2348",
-  "fetched_at": "2026-11-24T00:39:18",
+  "fetched_at": "2026-11-24T01:10:40",
   "dart": "ok"
  },
  "2353": {
@@ -239,7 +239,7 @@
   "name": "인터엑스",
   "no": "2353",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2353",
-  "fetched_at": "2026-11-24T00:39:20",
+  "fetched_at": "2026-11-24T01:10:42",
   "dart": "ok"
  },
  "2358": {
@@ -266,7 +266,7 @@
   "name": "다비오",
   "no": "2358",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2358",
-  "fetched_at": "2026-11-24T00:39:24",
+  "fetched_at": "2026-11-24T01:10:43",
   "dart": "ok"
  },
  "2359": {
@@ -293,7 +293,7 @@
   "name": "마더스제약",
   "no": "2359",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2359",
-  "fetched_at": "2026-11-24T00:39:25",
+  "fetched_at": "2026-11-24T01:10:44",
   "dart": "ok"
  },
  "2351": {
@@ -320,7 +320,7 @@
   "name": "이노보테라퓨틱스",
   "no": "2351",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2351",
-  "fetched_at": "2026-11-24T00:39:27",
+  "fetched_at": "2026-11-24T01:10:46",
   "dart": "ok"
  },
  "2354": {
@@ -347,7 +347,7 @@
   "name": "우리투자스팩1호",
   "no": "2354",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2354",
-  "fetched_at": "2026-11-24T00:39:28",
+  "fetched_at": "2026-11-24T01:10:47",
   "dart": "not_found"
  },
  "2343": {
@@ -374,7 +374,7 @@
   "name": "엔키화이트햇",
   "no": "2343",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2343",
-  "fetched_at": "2026-11-24T00:39:30",
+  "fetched_at": "2026-11-24T01:10:48",
   "dart": "ok"
  },
  "2350": {
@@ -401,7 +401,7 @@
   "name": "에이엔에이치스트럭쳐",
   "no": "2350",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2350",
-  "fetched_at": "2026-11-24T00:39:31",
+  "fetched_at": "2026-11-24T01:10:51",
   "dart": "ok"
  },
  "2357": {
@@ -428,7 +428,7 @@
   "name": "신영스팩12호",
   "no": "2357",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2357",
-  "fetched_at": "2026-11-24T00:39:33",
+  "fetched_at": "2026-11-24T01:10:54",
   "dart": "not_found"
  },
  "2352": {
@@ -455,7 +455,7 @@
   "name": "유캐스트",
   "no": "2352",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2352",
-  "fetched_at": "2026-11-24T00:39:35",
+  "fetched_at": "2026-11-24T01:10:57",
   "dart": "ok"
  },
  "2321": {
@@ -482,7 +482,7 @@
   "name": "엠비디",
   "no": "2321",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2321",
-  "fetched_at": "2026-11-24T00:39:37",
+  "fetched_at": "2026-11-24T01:10:59",
   "dart": "ok"
  },
  "2334": {
@@ -509,7 +509,7 @@
   "name": "하나에어로다이내믹스",
   "no": "2334",
   "source": "http://www.38.co.kr/html/fund/?o=v&no=2334",
-  "fetched_at": "2026-11-24T00:39:39",
+  "fetched_at": "2026-11-24T01:11:01",
   "dart": "not_found"
  },
  "2340": {
