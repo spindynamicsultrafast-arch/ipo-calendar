@@ -1516,5 +1516,36 @@
    "l": 5660,
    "c": 5670
   }
+ },
+ "2321": {
+  "demand_start": "2026-11-02",
+  "demand_end": "2026-11-06",
+  "sub_start": "2026-11-12",
+  "sub_end": "2026-11-13",
+  "pay": "2026-11-17",
+  "refund": "2026-11-17",
+  "listing": "2026-11-24",
+  "price": 7000.0,
+  "band_low": 9600.0,
+  "band_high": 11700.0,
+  "inst_ratio": 187.1,
+  "lockup_pct": 0.0,
+  "retail_ratio": 172.0,
+  "amount_mil": 14000.0,
+  "sector": "물질 검사, 측정 및 분석기구 제조업",
+  "underwriter": "하나증권",
+  "code": "498150",
+  "deposit_pct": 50.0,
+  "min_shares": 10,
+  "status": "확정",
+  "name": "엠비디",
+  "no": "2321",
+  "source": "http://www.38.co.kr/html/fund/?o=v&no=2321",
+  "ohlc": {
+   "o": 5930,
+   "h": 6700,
+   "l": 4200,
+   "c": 4200
+  }
  }
 }
