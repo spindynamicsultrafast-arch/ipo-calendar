@@ -59,6 +59,31 @@ def sync_open_days():
         json.dump(cal, f)
 
 
+def update_holi():
+    """calendar.html 정산일 계산용 휴장일(HOLI)을 KIS 달력 + CLOSED 로 채우고, 바뀌면 커밋·푸시. 일요일 --week 때."""
+    git = lambda *a: subprocess.run(["git", "-C", HERE, *a], check=True, capture_output=True, timeout=120)
+    if subprocess.run(["git", "-C", HERE, "status", "--porcelain"], capture_output=True, text=True).stdout.strip():
+        raise RuntimeError("작업 트리에 안 올린 변경 있음, 휴장일 푸시 건너뜀")
+    git("pull", "-q", "--rebase")  # 봇이 매일 calendar.html(ipo-data)을 커밋함. 최신 위에 고친다
+    with open(OPEN_DAYS, encoding="utf-8") as f:
+        kis = {f"{k[:4]}-{k[4:6]}-{k[6:]}": v for k, v in json.load(f).items()}
+    path = os.path.join(HERE, "calendar.html")
+    with open(path, encoding="utf-8") as f:
+        html = f.read()
+    m = re.search(r"const HOLI = new Set\(\[(.*?)\]\);", html, re.S)
+    old = set(re.findall(r"'(\d{4}-\d\d-\d\d)'", m.group(1)))
+    new = {d for d in old | CLOSED if d not in kis} | {d for d, v in kis.items() if not v and dt.date.fromisoformat(d).weekday() < 5}
+    if new == old:
+        return
+    days = sorted(new)
+    body = ",\n    ".join(",".join(f"'{d}'" for d in days[i:i + 10]) for i in range(0, len(days), 10))
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(html[:m.start(1)] + body + html[m.end(1):])
+    git("commit", "-q", "-m", "calendar: update market holidays from KIS", "--", "calendar.html")
+    git("push", "-q")
+    log(f"휴장일 갱신: +{sorted(new - old)} -{sorted(old - new)}")
+
+
 def is_open(d):
     """KIS 달력이 그 날을 덮으면 그걸 믿고, 아니면 주말 + 손 목록(CLOSED)."""
     try:
@@ -228,8 +253,10 @@ def main():
     if week and "--shot" not in args:
         try:
             sync_open_days()  # 주 1회 휴장일 갱신
+            update_holi()  # 달력 정산일용 휴장일 반영
         except Exception as e:  # noqa: BLE001 VM 장애로 주간 브리핑까지 막지 않음 (주간은 휴장일 검사 안 함, 지난 캐시·CLOSED 로 버팀)
             log(f"휴장일 동기화 실패, 계속 보냄 | {e!r}")
+            alert(f"[공모주] 휴장일 정보 갱신 안 됨 (정산일이 틀릴 수 있음) | {e!r}"[:300])
     if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
