@@ -90,6 +90,7 @@ button { font: inherit; color: inherit; }
 .t-청약 { background: var(--sub-soft); color: var(--sub); }
 .t-환불 { background: var(--refund-soft); color: var(--refund); }
 .t-상장 { background: var(--listing); color: var(--on-listing); }
+.t-정산 { background: var(--refund-soft); color: var(--refund); }
 .grade { display: inline-grid; place-items: center; min-width: 2.2em; height: 2.2em; border-radius: 8px; font-weight: 700; font-size: 1.05rem; }
 .g-A { background: var(--good-soft); color: var(--good); }
 .g-B { background: var(--mid-soft); color: var(--mid); }
@@ -284,6 +285,7 @@ dd { margin: 0; min-width: 0; }
       <span><i class="tag t-청약">청</i>청약 · 돈 넣는 날</span>
       <span><i class="tag t-환불">환</i>환불 · 남은 돈 돌려받는 날</span>
       <span><i class="tag t-상장">상</i>상장 · 팔 수 있는 첫날</span>
+      <span><i class="tag t-정산">정</i>정산 · 상장일에 팔면 돈 들어오는 날</span>
     </div>
   </section>
   </details>
@@ -336,6 +338,12 @@ dd { margin: 0; min-width: 0; }
   const wd = e => items[e.idx].grade === '철회', label = e => wd(e) ? '철회' : e.type, tcls = e => wd(e) ? '환불' : e.type;
   const tag = e => `<i class="tag t-${tcls(e)}">${label(e)}</i>`;
 
+  // 정산 = 상장일(T)+2영업일. 주말·휴장일 건너뜀
+  // ponytail: 휴장일 손으로 적음 (2026~2027.3). 이후 날짜는 주말만 건너뜀, 해 바뀌면 추가
+  const HOLI = new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-01','2026-05-05','2026-05-25','2026-06-03','2026-08-17',
+    '2026-09-24','2026-09-25','2026-10-05','2026-10-09','2026-12-25','2026-12-31','2027-01-01','2027-02-08','2027-02-09','2027-03-01']);
+  const settle = s => { const d = parse(s); for (let n = 0; n < 2;) { d.setDate(d.getDate() + 1); if (d.getDay() % 6 && !HOLI.has(iso(d))) n++; } return iso(d); };
+
   // 일정 이벤트 펼치기 (청약은 평일만)
   const events = [];
   items.forEach((it, idx) => {
@@ -352,9 +360,9 @@ dd { margin: 0; min-width: 0; }
     // 환불·상장은 청약할 종목(A·B)만. C·평가 전은 청약 줄만 (청약 안 한 종목의 환불·상장은 군더더기). 상세 창엔 날짜 그대로 나옴
     if (!['A', 'B'].includes(it.grade)) return;
     if (it.refund) events.push({ date: it.refund, type: '환불', idx });
-    if (it.listing) events.push({ date: it.listing, type: '상장', idx });
+    if (it.listing) events.push({ date: it.listing, type: '상장', idx }, { date: settle(it.listing), type: '정산', idx });
   });
-  const ORDER = { 상장: 0, 청약: 1, 환불: 2 };  // 중요도 순
+  const ORDER = { 상장: 0, 청약: 1, 환불: 2, 정산: 3 };  // 중요도 순
   events.sort((a, b) => a.date.localeCompare(b.date) || ORDER[a.type] - ORDER[b.type]);
   const byDate = {};
   events.forEach(e => (byDate[e.date] ||= []).push(e));
@@ -399,7 +407,7 @@ dd { margin: 0; min-width: 0; }
     const it = items[e.idx];
     const when = e.type === '청약' && it.sub_end !== it.sub_start ? `${md(it.sub_start)}<small>~ ${md(it.sub_end)}</small>` : md(e.date);
     const price = it.price ? `공모가 ${won(it.price)}` : `공모가 미정 ${won(it.band_low)}~${won(it.band_high)}`;
-    const note = [it.underwriter && uw(it), e.type !== '환불' && price].filter(Boolean).join(' · ');
+    const note = [it.underwriter && uw(it), !['환불', '정산'].includes(e.type) && price].filter(Boolean).join(' · ');
     return `<button type="button" class="todo${wd(e) ? ' wd' : ''}" data-idx="${e.idx}"${pin === true ? '' : ` data-g="${fkey(it.grade)}"`}>
       <span class="when num">${when}</span>
       <span class="what">${tag(e)}${esc(it.name)}<small>${note}</small>${e.type === '청약' && !wd(e) ?`<small class="money">${minCash(it)}</small>` : ''}${e.type === '상장' && qs.get('card') === 'today' && it.price ? `<small class="money">08:30~08:55 매도 · 하한가 ${won(floorPx(it.price))}</small>` : ''}</span>
@@ -595,6 +603,7 @@ dd { margin: 0; min-width: 0; }
         <span><i class="tag t-청약">청약</i><b class="num">${range(it.sub_start, it.sub_end)}</b></span>
         <span><i class="tag t-환불">환불</i><b class="num">${it.refund ? md(it.refund) : '-'}</b></span>
         <span><i class="tag t-상장">상장</i><b class="num">${it.listing ? md(it.listing) : '미정'}</b></span>
+        <span><i class="tag t-정산">정산</i><b class="num">${it.listing ? md(settle(it.listing)) : '-'}</b></span>
       </div>
       ${ohlcBox(it)}
       <dl>${[
