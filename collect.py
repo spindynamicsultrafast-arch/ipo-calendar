@@ -242,6 +242,16 @@ def carry_withdrawn(old, recs, keep_from, filers):
             gone = False
         if gone:
             recs[no] = {**prev, "status": "철회"}
+    # 38 은 철회 뒤에도 하루쯤 '예정' 으로 둔다 (2026-11-26 에이엔에이치스트럭쳐: 신고서 낮, 38 삭제 다음날 낮).
+    # 그래서 38 에 있어도, 상장 전 종목은 전부 매번 DART 에 묻는다 (수요예측 전·공모가 확정 뒤 철회도 있음)
+    today = dt.date.today().isoformat()
+    for no, rec in recs.items():
+        if rec.get("status") != "철회" and today <= (rec.get("listing") or rec.get("sub_end") or ""):
+            try:
+                if withdrawn(rec, filers):
+                    recs[no] = {**rec, "status": "철회"}
+            except Exception as e:  # noqa: BLE001 DART 장애 -> 다음 수집 때 다시
+                print("철회 확인 실패:", rec.get("name"), e)
 
 
 def dart_missing(known, filers, days=14):
@@ -303,13 +313,25 @@ def input_diffs(rec, t):
     return bad
 
 
-def dart_inputs(rec, filers):
-    """38 숫자를 DART 발행조건확정 신고서와 대조. 맞으면 None, 아니면 경고 문구."""
+def confirmed_nos(rec, filers):
+    """DART 발행조건확정 신고서 접수번호들, 최신 먼저."""
     code = filers.get(norm(rec["name"]))
     end = dt.date.today()
     lst = dart("list.json", corp_code=code, bgn_de=(end - dt.timedelta(days=89)).strftime("%Y%m%d"),
                end_de=end.strftime("%Y%m%d"), pblntf_ty="C", page_count=100) if code else {}
-    nos = sorted((x["rcept_no"] for x in lst.get("list", []) if "발행조건확정" in x["report_nm"]), reverse=True)
+    return sorted((x["rcept_no"] for x in lst.get("list", []) if "발행조건확정" in x["report_nm"]), reverse=True)
+
+
+def dart_price(rec, filers):
+    """38 에 공모가가 없을 때: DART 에 발행조건확정이 났으면 확정 공모가, 아니면 None."""
+    nos = confirmed_nos(rec, filers)
+    m = nos and re.search(r"확정\s?공모가액[^0-9]{0,40}([\d,]+)원", dart_doc(nos[0]))
+    return float(m.group(1).replace(",", "")) if m else None
+
+
+def dart_inputs(rec, filers):
+    """38 숫자를 DART 발행조건확정 신고서와 대조. 맞으면 None, 아니면 경고 문구."""
+    nos = confirmed_nos(rec, filers)
     if not nos:  # 공시가 아직 없으면 A/B 만 알림 (C·대기는 어차피 안 권함)
         return f"{rec['name']}: {grade(rec)} 등급인데 공시로 확인 못 함" if grade(rec) in ("A", "B") else None
     bad = input_diffs(rec, dart_doc(nos[0]))
@@ -473,6 +495,15 @@ def main():
     path = os.path.join(DATA, "ipos.json")
     old = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
     carry_withdrawn(old, recs, keep_from, filers)
+    for r in recs.values() if filers else ():  # 38 이 공모가를 늦게 올림 vs 철회: 청약 3일 전부터 DART 확정 공시로 가린다
+        if (r["status"] == "예정" and r.get("sub_start")
+                and (today + dt.timedelta(days=3)).isoformat() >= r["sub_start"] and today.isoformat() <= r["sub_end"]):
+            try:
+                if px := dart_price(r, filers):
+                    r["price"], r["status"] = px, "확정"
+                    kind_warns.append(f"{r['name']}: 38 엔 공모가 없음, DART 확정 {px:,.0f}원으로 넣음 (경쟁률·확약은 38 대기)")
+            except Exception as e:  # noqa: BLE001
+                print("DART 공모가 확인 실패:", r["name"], e)
     changes = diff(old, recs)
     os.makedirs(DATA, exist_ok=True)
     json.dump(recs, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

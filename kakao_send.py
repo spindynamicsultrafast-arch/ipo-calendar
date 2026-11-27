@@ -113,10 +113,12 @@ def warnings(day, data=None, now=None):
     age = ((now or dt.datetime.now()) - dt.datetime.fromisoformat(data["generated_at"])).total_seconds() / 3600
     if age > 36:  # 하루치 수집을 통째로 놓침
         out.append(f"달력 데이터가 {age:.0f}시간 전 것 (수집 실패?)")
-    wait = [it["name"] for it in data["items"]
+    wait = [it for it in data["items"]
             if not it.get("grade") and it.get("sub_start") and it["sub_start"] <= day <= it["sub_end"]]
-    if wait:
-        out.append("오늘 청약인데 평가 전: " + ", ".join(wait))
+    if nop := [it["name"] for it in wait if not it.get("price")]:  # 청약 당일 공모가 없음 = 정상일 수 없음
+        out.append("오늘 청약인데 공모가 없음 (철회 또는 수집 오류, 확인 필요): " + ", ".join(nop))
+    if pend := [it["name"] for it in wait if it.get("price")]:
+        out.append("오늘 청약인데 평가 전: " + ", ".join(pend))
     return out
 
 

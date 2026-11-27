@@ -116,3 +116,24 @@ assert collect.kind_key("하나에어로다이내믹스", kl2, names) == "하나
 assert collect.kind_key("에이비씨", kl2, names) is None  # '에이' 로 시작하는 38 종목이 둘
 assert collect.kind_key("딴회사", kl2, names) is None
 print("kind ok")
+
+# 38 에 아직 남은 철회: 상장 전 종목은 전부 DART 에 묻는다 (2026-11-26 에이엔에이치스트럭쳐)
+_w, collect.withdrawn = collect.withdrawn, lambda rec, f: "철회" in rec["name"] or rec["name"] == "지난것"
+_t = collect.dt.date.today()
+_b = {"status": "예정", "price": None, "demand_end": (_t - collect.dt.timedelta(days=1)).isoformat(),
+      "sub_end": (_t + collect.dt.timedelta(days=3)).isoformat()}
+rs = {"1": {**_b, "name": "철회사"}, "2": {**_b, "name": "정상사"}, "3": {**_b, "name": "확정철회", "price": 1000.0}, "5": {**_b, "name": "지난것", "sub_end": "2026-01-01"},
+      "4": {**_b, "name": "예측전철회", "demand_end": (_t + collect.dt.timedelta(days=1)).isoformat()}}
+collect.carry_withdrawn({}, rs, _t.isoformat(), {})
+assert {r["name"]: r["status"] for r in rs.values()} == {"철회사": "철회", "정상사": "예정", "확정철회": "철회", "예측전철회": "철회", "지난것": "예정"}, rs
+collect.withdrawn = _w
+print("listed withdrawn ok")
+
+# 38 에 공모가 없을 때 DART 발행조건확정 본문에서 확정 공모가
+_n, _d = collect.confirmed_nos, collect.dart_doc
+collect.confirmed_nos = lambda rec, f: ["2"] if rec["name"] == "확정" else []
+collect.dart_doc = lambda no: "1. 확정 공모가액 : 주당 12,500원 (희망 11,200원 ~ 13,600원)"
+assert collect.dart_price({"name": "확정"}, {}) == 12500.0
+assert collect.dart_price({"name": "미정"}, {}) is None
+collect.confirmed_nos, collect.dart_doc = _n, _d
+print("dart price ok")
