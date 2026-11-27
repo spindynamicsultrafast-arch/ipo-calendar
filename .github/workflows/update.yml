@@ -20,6 +20,8 @@ jobs:
     env:
       TZ: Asia/Seoul
       DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      NAVER_ID: ${{ secrets.NAVER_ID }}  # 38 에서 사라진 종목 철회 기사 검색 (없으면 건너뜀)
+      NAVER_SECRET: ${{ secrets.NAVER_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

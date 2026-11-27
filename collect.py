@@ -91,6 +91,8 @@ def grade(rec):
     """v0 수급·가격 등급. 수요예측 전이면 None. 기준은 PLAN.md 참고."""
     if rec.get("status") == "철회":
         return "철회"
+    if rec.get("status") == "사라짐":  # 38 에서 빠짐, 확인 전엔 등급 안 줌 (단체방에 안 가게)
+        return None
     if rec["inst_ratio"] is None or not rec["price"] or not rec["band_high"]:
         return None
     top = rec["price"] >= rec["band_high"]
@@ -229,19 +231,45 @@ def withdrawn(rec, filers):
     return any("철회신고서" in it["report_nm"] for it in r.get("list", []))
 
 
+def news_withdrawn(name):
+    """네이버 뉴스에 '종목명 철회' 기사가 있나 -> 첫 기사 링크 또는 None. 키 없으면 None."""
+    if not os.environ.get("NAVER_ID"):
+        return None
+    url = "https://openapi.naver.com/v1/search/news.json?" + urllib.parse.urlencode(
+        {"query": f"{norm(name)} 철회", "display": 20, "sort": "date"})
+    req = urllib.request.Request(url, headers={"X-Naver-Client-Id": os.environ["NAVER_ID"],
+                                               "X-Naver-Client-Secret": os.environ["NAVER_SECRET"]})
+    for it in json.loads(urllib.request.urlopen(req, timeout=20).read())["items"]:
+        t = re.sub(r"<[^>]+>|&\w+;", "", it["title"] + " " + it["description"])
+        if norm(name) in t.replace(" ", "") and "철회" in t:
+            return it.get("originallink") or it["link"]
+    return None
+
+
 def carry_withdrawn(old, recs, keep_from, filers):
     """철회하면 38 목록에서 사라짐 -> 직전 기록을 status '철회' 로 남긴다 (청약일 지나 14일까지).
-    철회신고서가 확인된 것만. 한 번 철회로 찍힌 건 다시 조회 안 함."""
+    DART 철회신고서, 없으면 네이버 뉴스 '철회' 기사로 확인. 둘 다 없으면 청약 끝날 때까지 '사라짐' 으로 남기고 경고.
+    -> 경고 문구들."""
+    warns = []
+    today = dt.date.today().isoformat()
     for no, prev in old.items():
         if no in recs or (prev.get("sub_end") or "") < keep_from:
             continue
+        if prev.get("status") == "철회":
+            recs[no] = prev
+            continue
+        src = None
         try:
-            gone = prev.get("status") == "철회" or withdrawn(prev, filers)
-        except Exception as e:  # DART 장애 -> 이번엔 빠지고, 기록이 사라져 다음에도 못 살림 (드묾)
+            src = "DART" if withdrawn(prev, filers) else news_withdrawn(prev["name"])
+        except Exception as e:  # noqa: BLE001 DART·네이버 장애 -> '사라짐' 으로 남겨 다음 수집 때 다시
             print("철회 확인 실패:", prev.get("name"), e)
-            gone = False
-        if gone:
-            recs[no] = {**prev, "status": "철회"}
+        if src:
+            recs[no] = {**prev, "status": "철회", "withdrawn_src": src}
+            if src != "DART":
+                warns.append(f"{prev['name']}: 38 에서 사라짐, 철회 공시는 못 찾고 기사로 철회 처리 {src}")
+        elif today <= (prev.get("sub_end") or ""):
+            recs[no] = {**prev, "status": "사라짐"}
+            warns.append(f"{prev['name']}: 38 에서 사라짐, 철회 공시·기사 없음 (확인 필요) {prev.get('source', '')}")
     # 38 은 철회 뒤에도 하루쯤 '예정' 으로 둔다 (2026-11-26 에이엔에이치스트럭쳐: 신고서 낮, 38 삭제 다음날 낮).
     # 그래서 38 에 있어도, 상장 전 종목은 전부 매번 DART 에 묻는다 (수요예측 전·공모가 확정 뒤 철회도 있음)
     today = dt.date.today().isoformat()
@@ -252,6 +280,7 @@ def carry_withdrawn(old, recs, keep_from, filers):
                     recs[no] = {**rec, "status": "철회"}
             except Exception as e:  # noqa: BLE001 DART 장애 -> 다음 수집 때 다시
                 print("철회 확인 실패:", rec.get("name"), e)
+    return warns
 
 
 def dart_missing(known, filers, days=14):
@@ -494,7 +523,7 @@ def main():
 
     path = os.path.join(DATA, "ipos.json")
     old = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
-    carry_withdrawn(old, recs, keep_from, filers)
+    kind_warns += carry_withdrawn(old, recs, keep_from, filers)
     for r in recs.values() if filers else ():  # 38 이 공모가를 늦게 올림 vs 철회: 청약 3일 전부터 DART 확정 공시로 가린다
         if (r["status"] == "예정" and r.get("sub_start")
                 and (today + dt.timedelta(days=3)).isoformat() >= r["sub_start"] and today.isoformat() <= r["sub_end"]):

@@ -153,3 +153,20 @@ _it.append({"grade": "B", "sub_start": "2026-12-10", "sub_end": "2026-12-11", "l
 assert _h("2026-12-10", False) and not _h("2026-12-10", True)
 kakao_send.is_open = _o
 print("kakao schedule ok")
+
+# 38 에서 사라진 종목: DART 철회 -> 철회, 기사 -> 철회+경고, 둘 다 없음 -> '사라짐'+경고 (등급 없음)
+_w, _nw = collect.withdrawn, collect.news_withdrawn
+collect.withdrawn = lambda rec, f: rec["name"] == "공시철회"
+collect.news_withdrawn = lambda name: "http://news/1" if name == "기사철회" else None
+_t = collect.dt.date.today()
+_e = (_t + collect.dt.timedelta(days=2)).isoformat()
+_old = {str(i): {"name": n, "status": "예정", "sub_end": _e, "price": 1000.0, "inst_ratio": 900.0, "lockup_pct": 50.0,
+                 "band_high": 1000.0, "source": "http://38/" + n}
+        for i, n in enumerate(["공시철회", "기사철회", "모름"])}
+rs = {}
+ws = collect.carry_withdrawn(_old, rs, _t.isoformat(), {})
+assert [rs[k]["status"] for k in "012"] == ["철회", "철회", "사라짐"], rs
+assert collect.grade(rs["2"]) is None and collect.grade(rs["1"]) == "철회"
+assert len(ws) == 2 and "http://news/1" in ws[0] and "확인 필요" in ws[1], ws
+collect.withdrawn, collect.news_withdrawn = _w, _nw
+print("vanished ok")
