@@ -3,12 +3,12 @@
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
   python kakao_send.py                    # 사진 전송, A/B 상장 있는 날만 (07:30) + 나와의 채팅 확인 알림
-  python kakao_send.py --at9              # 사진 전송, 상장 없는 날의 A/B 청약·환불·정산 (09:00)
+  python kakao_send.py --at9              # 사진 전송, 상장 없는 날의 A/B 청약·환불·정산 (08:45)
   python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
   python kakao_send.py --today            # 오늘 일정만, A/B 상장 있는 날만 (08:45 동시호가 매도 알림용)
   옵션: --to "방이름[;방이름]" (기본 .env 의 KAKAO_SELF = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
-휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 상장일만 두 번(07:30 사진, 08:45 매도 안내), 나머지는 09:00 한 번. 사진 = 오늘 + 그다음 가장 빠른 일정.
+휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 상장일만 두 번(07:30 사진, 08:45 매도 안내), 나머지는 08:45 한 번. 사진 = 오늘 + 그다음 가장 빠른 일정.
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창 채팅 탭에서
 이름 검색해 연다. 창·입력칸 포커스를 확인 못 하면 키를 안 누른다.
 카톡은 WM_SETTEXT 로 넣은 글은 Enter 로 안 보낸다. 진짜 Ctrl+V·Enter 만 먹는다 (2026-11-12 확인).
@@ -155,7 +155,7 @@ def settle(listing):
 
 
 def has_events(day, week=False, at9=False, items=None):
-    """보낼 일정이 있나 (A/B 만). 07:30: 오늘 상장 (시간이 급함). 09:00(at9): 상장 없는 날의 청약·환불·정산.
+    """보낼 일정이 있나 (A/B 만). 07:30: 오늘 상장 (시간이 급함). 08:45(at9): 상장 없는 날의 청약·환불·정산.
     week: 다음 주 월~금 청약·환불·상장."""
     items = items if items is not None else page_items()
     days = [day]

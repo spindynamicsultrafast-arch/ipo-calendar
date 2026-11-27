@@ -138,7 +138,7 @@ assert collect.dart_price({"name": "미정"}, {}) is None
 collect.confirmed_nos, collect.dart_doc = _n, _d
 print("dart price ok")
 
-# 카톡 시각 나누기: 상장일 07:30, 청약·환불·정산 09:00 (상장 있는 날은 07:30 사진에 다 들어가 09:00 안 감)
+# 카톡 시각 나누기: 상장일 07:30, 청약·환불·정산 08:45 (상장 있는 날은 07:30 사진에 다 들어가 08:45 사진 안 감)
 import kakao_send  # noqa: E402
 _o, kakao_send.is_open = kakao_send.is_open, lambda d: d.weekday() < 5
 _it = [{"grade": "A", "sub_start": "2026-12-01", "sub_end": "2026-12-02", "refund": "2026-12-04", "listing": "2026-12-10"},
