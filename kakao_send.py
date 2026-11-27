@@ -2,12 +2,13 @@
 
 사용:
   python kakao_send.py --shot             # 사진만 만들고 경로 출력 (안 보냄)
-  python kakao_send.py                    # 사진 전송
+  python kakao_send.py                    # 사진 전송, A/B 상장 있는 날만 (07:30) + 나와의 채팅 확인 알림
+  python kakao_send.py --at9              # 사진 전송, 상장 없는 날의 A/B 청약·환불·정산 (09:00)
   python kakao_send.py --week             # 다음 주 월~금 미리보기 (일요일 예약용)
   python kakao_send.py --today            # 오늘 일정만, A/B 상장 있는 날만 (08:45 동시호가 매도 알림용)
   옵션: --to "방이름[;방이름]" (기본 .env 의 KAKAO_SELF = 나와의 채팅), --date 2026-11-16  (단톡방 이름에 쉼표가 있어 ; 로 나눔)
 
-휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 사진 = 오늘 + 그다음 가장 빠른 일정.
+휴장일(주말·CLOSED)과 오늘 A/B 일정 없는 날은 안 보낸다. 상장일만 두 번(07:30 사진, 08:45 매도 안내), 나머지는 09:00 한 번. 사진 = 오늘 + 그다음 가장 빠른 일정.
 조건: PC 켜짐·잠금 해제, 카톡 PC 앱 로그인. 방 창이 없으면 메인 창 채팅 탭에서
 이름 검색해 연다. 창·입력칸 포커스를 확인 못 하면 키를 안 누른다.
 카톡은 WM_SETTEXT 로 넣은 글은 Enter 로 안 보낸다. 진짜 Ctrl+V·Enter 만 먹는다 (2026-11-12 확인).
@@ -144,17 +145,33 @@ def sell_msg(day):
                             "9시에 시초가로 체결됩니다.\r\n9시 지나 체결 확인하고,\r\n안 됐으면 시장가로 매도하세요."])
 
 
-def has_events(day, week=False):
-    """보낼 일정이 있나. 오늘(week: 다음 주 월~금) A/B 의 청약·환불·상장."""
-    items = page_items()
+def settle(listing):
+    """정산일 = 상장일 + 2영업일 (calendar.html settle() 과 같은 규칙)."""
+    d, n = dt.date.fromisoformat(listing), 0
+    while n < 2:
+        d += dt.timedelta(days=1)
+        n += is_open(d)
+    return d.isoformat()
+
+
+def has_events(day, week=False, at9=False, items=None):
+    """보낼 일정이 있나 (A/B 만). 07:30: 오늘 상장 (시간이 급함). 09:00(at9): 상장 없는 날의 청약·환불·정산.
+    week: 다음 주 월~금 청약·환불·상장."""
+    items = items if items is not None else page_items()
     days = [day]
     if week:
         mon = dt.date.fromisoformat(day)
         mon += dt.timedelta(days=7 - mon.weekday())
         days = [(mon + dt.timedelta(days=i)).isoformat() for i in range(5)]
     sub = lambda it, d: it.get("sub_start") and it["sub_start"] <= d <= it["sub_end"]
-    return any(it.get("grade") in SHOW and (d in (it.get("refund"), it.get("listing")) or sub(it, d))
-               for it in items for d in days)
+    ab = [it for it in items if it.get("grade") in SHOW]
+    if week:
+        return any(d in (it.get("refund"), it.get("listing")) or sub(it, d) for it in ab for d in days)
+    listing = any(it.get("listing") == day for it in ab)
+    if not at9:
+        return listing
+    return not listing and any(day == it.get("refund") or sub(it, day)
+                               or (it.get("listing") and settle(it["listing"]) == day) for it in ab)
 
 
 def shot(day, card=1):
@@ -277,7 +294,7 @@ def main():
         return
     today = "--today" in args  # 08:45 알림: A/B 상장이 있는 날만, 사진 뒤에 매도 안내 글
     msg = sell_msg(day) if today else None
-    if not (msg if today else has_events(day, week)):
+    if not (msg if today else has_events(day, week, "--at9" in args)):
         print(f"{day}: 보낼 일정 없음, 안 보냄")
         return
     png = shot(day, "week" if week else "today" if today else 1)
@@ -336,7 +353,7 @@ if __name__ == "__main__":
         raise
     # 07:30 실행 때만: 놓친 게 없는지 확인 거리를 나와의 채팅에 (가족 단톡방엔 안 감)
     # ponytail: 풀릴 때까지 매일 아침 같은 경고가 옴. 귀찮아지면 본 경고를 파일에 적어 한 번만
-    if not {"--shot", "--week", "--today"} & set(sys.argv):
+    if not {"--shot", "--week", "--today", "--at9"} & set(sys.argv):
         try:
             a = sys.argv
             day = a[a.index("--date") + 1] if "--date" in a else dt.date.today().isoformat()
