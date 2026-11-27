@@ -48,6 +48,7 @@ OPEN_DAYS = os.path.join(HERE, "open_days.json")  # KIS 휴장일조회 결과 �
 from collect import load_env  # noqa: E402  .env 읽기 (방 이름은 public 저장소에 안 올림)
 load_env()
 ALERT_TO = os.environ.get("KAKAO_SELF", "")  # 실패 알림 받을 방 (나와의 채팅)
+KAKAO_EXE = r"C:\Program Files (x86)\Kakao\KakaoTalk\KakaoTalk.exe"
 
 
 def sync_open_days():
@@ -222,6 +223,13 @@ def open_room(name):
     hwnd = u32.FindWindowW(None, name)
     if not hwnd:
         main = u32.FindWindowW(None, "카카오톡")
+        if not main and os.path.exists(KAKAO_EXE):  # 꺼져 있으면 켠다 (2026-11-27 재부팅 뒤 안 떠 있어 실패). 자동 로그인 켜져 있어야 함
+            subprocess.Popen([KAKAO_EXE])
+            for _ in range(90):  # 재부팅 직후엔 1분 넘게 걸림 (2026-11-27)
+                time.sleep(2)
+                if main := u32.FindWindowW(None, "카카오톡"):
+                    time.sleep(3)  # 로그인·목록 로딩
+                    break
         if not main or not focus(main):
             sys.exit("카카오톡 메인 창을 앞으로 못 띄움. 키 안 누름")
         # 채팅 탭 클릭 → Ctrl+F 방 이름 검색 → 첫 결과 Enter. 엉뚱한 방이 열려도 아래 제목 확인에서 멈춤
