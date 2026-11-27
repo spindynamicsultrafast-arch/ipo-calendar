@@ -223,14 +223,19 @@ def open_room(name):
     hwnd = u32.FindWindowW(None, name)
     if not hwnd:
         main = u32.FindWindowW(None, "카카오톡")
-        if not main and os.path.exists(KAKAO_EXE):  # 꺼져 있으면 켠다 (2026-11-27 재부팅 뒤 안 떠 있어 실패). 자동 로그인 켜져 있어야 함
+        ok = bool(main) and focus(main)
+        if not ok and os.path.exists(KAKAO_EXE):
+            # 꺼져 있거나 트레이에 숨어 있으면 exe 를 다시 실행 (이미 떠 있으면 창이 다시 나옴). 자동 로그인 켜져 있어야 함
+            # 창이 뜬 직후엔 앞으로 못 가져와서, 될 때까지 다시 시도 (2026-11-27 재부팅 뒤 실패, 1분 넘게 걸림)
             subprocess.Popen([KAKAO_EXE])
-            for _ in range(90):  # 재부팅 직후엔 1분 넘게 걸림 (2026-11-27)
-                time.sleep(2)
-                if main := u32.FindWindowW(None, "카카오톡"):
-                    time.sleep(3)  # 로그인·목록 로딩
+            for _ in range(60):
+                time.sleep(3)
+                main = u32.FindWindowW(None, "카카오톡")
+                if main and focus(main):
+                    ok = True
+                    time.sleep(10)  # 막 켜면 채팅 목록 로딩 전에 검색하면 방을 못 찾음 (2026-11-27)
                     break
-        if not main or not focus(main):
+        if not ok:
             sys.exit("카카오톡 메인 창을 앞으로 못 띄움. 키 안 누름")
         # 채팅 탭 클릭 → Ctrl+F 방 이름 검색 → 첫 결과 Enter. 엉뚱한 방이 열려도 아래 제목 확인에서 멈춤
         # (친구 탭 검색엔 나와의 채팅이 안 나오고, Ctrl+2 는 탭 전환 안 됨. 2026-11-13 확인)
