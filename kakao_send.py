@@ -47,14 +47,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OPEN_DAYS = os.path.join(HERE, "open_days.json")  # KIS 휴장일조회 결과 사본 {"YYYYMMDD": 개장여부}
 from collect import load_env  # noqa: E402  .env 읽기 (방 이름은 public 저장소에 안 올림)
 load_env()
-ALERT_TO = os.environ.get("KAKAO_SELF", "")  # --to 없을 때 보낼 방 (나와의 채팅)
+ALERT_TO = os.environ.get("KAKAO_SELF", "")  # 실패 알림 받을 방 (나와의 채팅)
 
 
 def sync_open_days():
     """overnight-kis VM 의 KIS 개장일 캐시(약 45~96일치)를 읽기 전용으로 받아 둔다. 일요일 --week 때 한 번."""
     r = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "kis",
                         "cat overnight-kis/app/data/open_days.json"], capture_output=True, timeout=60)
-    cal = json.loads(r.stdout.decode("utf-8"))  # 실패하면 여기서 던짐 → 로그
+    cal = json.loads(r.stdout.decode("utf-8"))  # 실패하면 여기서 던짐 → 실패 알림
     with open(OPEN_DAYS, "w", encoding="utf-8") as f:
         json.dump(cal, f)
 
@@ -104,6 +104,22 @@ def page_data():
 
 def page_items():
     return page_data()["items"]
+
+
+def warnings(day, data=None, now=None):
+    """나와의 채팅으로 보낼 확인 거리: 수집이 멈췄나, DART 와 어긋나나, 오늘 청약인데 등급이 없나."""
+    data = data or page_data()
+    out = list(data.get("warnings") or [])
+    age = ((now or dt.datetime.now()) - dt.datetime.fromisoformat(data["generated_at"])).total_seconds() / 3600
+    if age > 36:  # 하루치 수집을 통째로 놓침
+        out.append(f"달력 데이터가 {age:.0f}시간 전 것 (수집 실패?)")
+    wait = [it for it in data["items"]
+            if not it.get("grade") and it.get("sub_start") and it["sub_start"] <= day <= it["sub_end"]]
+    if nop := [it["name"] for it in wait if not it.get("price")]:  # 청약 당일 공모가 없음 = 정상일 수 없음
+        out.append("오늘 청약인데 공모가 없음 (철회 또는 수집 오류, 확인 필요): " + ", ".join(nop))
+    if pend := [it["name"] for it in wait if it.get("price")]:
+        out.append("오늘 청약인데 평가 전: " + ", ".join(pend))
+    return out
 
 
 def floor_px(price):
@@ -242,6 +258,7 @@ def main():
             update_holi()  # 달력 정산일용 휴장일 반영
         except Exception as e:  # noqa: BLE001 VM 장애로 주간 브리핑까지 막지 않음 (주간은 휴장일 검사 안 함, 지난 캐시·CLOSED 로 버팀)
             log(f"휴장일 동기화 실패, 계속 보냄 | {e!r}")
+            alert(f"[공모주] 휴장일 정보 갱신 안 됨 (정산일이 틀릴 수 있음) | {e!r}"[:300])
     if not week and not is_open(dt.date.fromisoformat(day)):  # 휴장일(주말·공휴일·기타)은 안 보냄
         print(f"{day}: 휴장일, 안 보냄")
         return
@@ -280,6 +297,16 @@ def log(msg):
         print(f"{dt.datetime.now():%Y-%m-%d %H:%M} {msg}", file=f)
 
 
+def alert(msg):
+    """실패를 나와의 채팅에 한 줄로. 화면이 잠겨 있으면 이것도 못 보냄 (로그에는 남음)."""
+    hwnd, edit = open_room(ALERT_TO)
+    if not focus(hwnd, edit):
+        return
+    clip_set(13, (msg + chr(0)).encode("utf-16-le"))
+    key(0x11, 0x56)
+    key(0x0D)
+
+
 if __name__ == "__main__":
     try:
         main()
@@ -288,4 +315,21 @@ if __name__ == "__main__":
             raise
         why = e.code if isinstance(e, SystemExit) else f"{type(e).__name__}: {e}"
         log("실패 " + " ".join(sys.argv[1:]) + " | " + why)
+        if "--shot" not in sys.argv:
+            try:
+                alert(f"[공모주 알림 실패] {why}")
+            except BaseException as e2:  # noqa: BLE001 알림 실패는 로그만
+                log(f"알림도 실패 | {e2}")
         raise
+    # 07:30 실행 때만: 놓친 게 없는지 확인 거리를 나와의 채팅에 (가족 단톡방엔 안 감)
+    # ponytail: 풀릴 때까지 매일 아침 같은 경고가 옴. 귀찮아지면 본 경고를 파일에 적어 한 번만
+    if not {"--shot", "--week", "--today"} & set(sys.argv):
+        try:
+            a = sys.argv
+            day = a[a.index("--date") + 1] if "--date" in a else dt.date.today().isoformat()
+            ws = warnings(day) if is_open(dt.date.fromisoformat(day)) else []
+            if ws:
+                log("확인 | " + " / ".join(ws))
+                alert("[공모주 확인]\r\n" + "\r\n".join(ws))
+        except BaseException as e:  # noqa: BLE001
+            log(f"확인 알림 실패 | {e!r}")
